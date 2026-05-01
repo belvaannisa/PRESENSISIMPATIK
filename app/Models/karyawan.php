@@ -16,12 +16,15 @@ class Karyawan extends Model
         'alamat',
         'email',
         'tanggal_masuk',
-        'status_aktif'
+        'status_aktif',
+        'tipe_jam_keluar',
+        'jam_keluar'
     ];
 
     protected $casts = [
         'tanggal_masuk' => 'date',
         'status_aktif' => 'boolean',
+        'jam_keluar' => 'datetime:H:i',
     ];
 
     public static $jabatanList = [
@@ -33,6 +36,7 @@ class Karyawan extends Model
         'Kepala Marketing',
         'Admin Collection',
         'Kasir dan Fakturisasi',
+        'Supervisor',
         'Surveyor',
         'Sales',
         'Pengiriman',
@@ -40,4 +44,10 @@ class Karyawan extends Model
         'Driver',
         'Office Boy'
     ];
+
+    // RELASI KE PRESENSI
+public function presensis()
+{
+    return $this->hasMany(Presensi::class);
+}
 }

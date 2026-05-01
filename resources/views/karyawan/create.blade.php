@@ -1,9 +1,40 @@
 @extends('layouts.app')
 
 @section('content')
+
+<style>
+/* ================= MOBILE ONLY ================= */
+@media (max-width: 768px) {
+
+    .container {
+        padding: 10px !important;
+    }
+
+    .card-body {
+        padding: 15px !important;
+    }
+
+    .form-label {
+        font-size: 14px;
+    }
+
+    .form-control {
+        font-size: 14px;
+        padding: 8px;
+    }
+
+    .btn {
+        font-size: 14px;
+        padding: 8px;
+    }
+}
+</style>
+
 <div class="container mt-4">
 
-    <div class="card shadow-sm">
+    <div class="card shadow-sm border-0">
+        
+        {{-- HEADER --}}
         <div class="card-header text-white" style="background-color: #FA713F;">
             <h5 class="mb-0">Tambah Karyawan</h5>
         </div>
@@ -91,7 +122,7 @@
                     @enderror
                 </div>
 
-                {{-- STATUS AKTIF --}}
+                {{-- STATUS --}}
                 <div class="mb-3">
                     <label class="form-label">Status</label>
                     <select name="status_aktif" class="form-control">
@@ -100,8 +131,38 @@
                     </select>
                 </div>
 
+                {{-- TIPE JAM KELUAR --}}
+                <div class="mb-3">
+                    <label class="form-label">Tipe Jam Keluar</label>
+                    <select name="tipe_jam_keluar" 
+                            id="tipe_jam_keluar"
+                            class="form-control @error('tipe_jam_keluar') is-invalid @enderror">
+                        <option value="terbatas" {{ old('tipe_jam_keluar') == 'terbatas' ? 'selected' : '' }}>
+                            Terbatas
+                        </option>
+                        <option value="tidak terbatas" {{ old('tipe_jam_keluar') == 'tidak terbatas' ? 'selected' : '' }}>
+                            Tidak Terbatas
+                        </option>
+                    </select>
+                    @error('tipe_jam_keluar')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                </div>
+
+                {{-- JAM KELUAR --}}
+                <div class="mb-4" id="jamKeluarField">
+                    <label class="form-label">Jam Keluar</label>
+                    <input type="time" 
+                           name="jam_keluar" 
+                           class="form-control @error('jam_keluar') is-invalid @enderror"
+                           value="{{ old('jam_keluar') }}">
+                    @error('jam_keluar')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                </div>
+
                 {{-- BUTTON --}}
-                <div class="d-flex justify-content-between">
+                <div class="d-flex justify-content-between mt-4">
                     <a href="{{ route('karyawan.index') }}" class="btn btn-secondary">
                         Kembali
                     </a>
@@ -117,4 +178,22 @@
     </div>
 
 </div>
+
+{{-- JS --}}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+    const tipe = document.getElementById('tipe_jam_keluar');
+    const field = document.getElementById('jamKeluarField');
+
+    function toggleJamKeluar() {
+        field.style.display = (tipe.value === 'tidak terbatas') ? 'none' : 'block';
+    }
+
+    toggleJamKeluar();
+    tipe.addEventListener('change', toggleJamKeluar);
+
+});
+</script>
+
 @endsection

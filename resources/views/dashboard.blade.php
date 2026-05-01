@@ -1,6 +1,34 @@
 @extends('layouts.app')
 
 @section('content')
+
+<style>
+/* ================= MOBILE ONLY ================= */
+@media (max-width: 768px) {
+
+    .container {
+        padding: 10px !important;
+    }
+
+    .card-body h3 {
+        font-size: 22px;
+    }
+
+    .card-body h6 {
+        font-size: 14px;
+    }
+
+    /* Table biar gak pecah */
+    .table-responsive-mobile {
+        overflow-x: auto;
+    }
+
+    table {
+        min-width: 500px;
+    }
+}
+</style>
+
 <div class="container mt-4">
 
     <div class="card shadow-sm border-0">
@@ -14,27 +42,27 @@
             {{-- CARD --}}
             <div class="row">
 
-                <div class="col-md-4 mb-3">
+                <div class="col-md-4 col-12 mb-3">
                     <div class="card text-white" style="background-color: #FA713F;">
-                        <div class="card-body">
+                        <div class="card-body text-center text-md-start">
                             <h6>Total Karyawan</h6>
                             <h3>{{ $totalKaryawan ?? 0 }}</h3>
                         </div>
                     </div>
                 </div>
 
-                <div class="col-md-4 mb-3">
+                <div class="col-md-4 col-12 mb-3">
                     <div class="card text-dark" style="background-color: #FEECC8;">
-                        <div class="card-body">
+                        <div class="card-body text-center text-md-start">
                             <h6>Total Presensi</h6>
                             <h3>{{ $totalPresensi ?? 0 }}</h3>
                         </div>
                     </div>
                 </div>
 
-                <div class="col-md-4 mb-3">
+                <div class="col-md-4 col-12 mb-3">
                     <div class="card text-white" style="background-color: #FA713F;">
-                        <div class="card-body">
+                        <div class="card-body text-center text-md-start">
                             <h6>Presensi Hari Ini</h6>
                             <h3>{{ $presensiHariIni ?? 0 }}</h3>
                         </div>
@@ -49,7 +77,7 @@
                     Presensi Terbaru
                 </div>
 
-                <div class="card-body">
+                <div class="card-body table-responsive-mobile">
                     <table class="table table-bordered">
                         <thead class="text-white text-center" style="background-color: #FA713F;">
                             <tr>
@@ -59,19 +87,19 @@
                             </tr>
                         </thead>
                         <tbody>
-                           @forelse($presensi as $p)
-<tr>
-    <td>{{ $p->karyawan->nama ?? '-' }}</td>
-    <td>{{ $p->tanggal }}</td>
-    <td>{{ $p->jam_masuk ?? '-' }}</td>
-</tr>
-@empty
-<tr>
-    <td colspan="3" class="text-center text-muted">
-        Data belum tersedia
-    </td>
-</tr>
-@endforelse
+                            @forelse($presensi as $p)
+                            <tr>
+                                <td>{{ $p->karyawan->nama ?? '-' }}</td>
+                                <td>{{ $p->tanggal }}</td>
+                                <td>{{ $p->jam_masuk ?? '-' }}</td>
+                            </tr>
+                            @empty
+                            <tr>
+                                <td colspan="3" class="text-center text-muted">
+                                    Data belum tersedia
+                                </td>
+                            </tr>
+                            @endforelse
                         </tbody>
                     </table>
                 </div>

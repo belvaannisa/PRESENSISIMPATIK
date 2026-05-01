@@ -1,9 +1,58 @@
 @extends('layouts.app')
 
 @section('content')
+
+<style>
+/* ================= MOBILE ONLY ================= */
+@media (max-width: 768px) {
+
+    .container {
+        padding: 10px !important;
+    }
+
+    /* SEMBUNYIKAN TABLE */
+    .table-responsive {
+        display: none;
+    }
+
+    /* CARD MOBILE */
+    .karyawan-card {
+        border: 1px solid #eee;
+        border-radius: 12px;
+        padding: 12px;
+        margin-bottom: 12px;
+        background: #fff;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    }
+
+    .karyawan-card h6 {
+        margin-bottom: 5px;
+        font-weight: 600;
+    }
+
+    .karyawan-card small {
+        color: #888;
+    }
+
+    .karyawan-card .row {
+        font-size: 14px;
+    }
+
+    .karyawan-card .btn {
+        width: 48%;
+    }
+}
+
+/* DESKTOP ONLY (card disembunyikan) */
+@media (min-width: 769px) {
+    .karyawan-mobile {
+        display: none;
+    }
+}
+</style>
+
 <div class="container mt-4">
 
-    {{-- WRAPPER UTAMA --}}
     <div class="card shadow-sm border-0">
 
         {{-- HEADER --}}
@@ -18,7 +67,6 @@
             </a>
         </div>
 
-        {{-- BODY --}}
         <div class="card-body">
 
             {{-- SEARCH --}}
@@ -33,7 +81,7 @@
                 </form>
             </div>
 
-            {{-- TABLE --}}
+            {{-- ================= DESKTOP TABLE ================= --}}
             <div class="table-responsive">
                 <table class="table table-bordered table-striped table-hover">
                     <thead class="text-center text-white" style="background-color: #FA713F;">
@@ -58,13 +106,8 @@
                             <td>{{ $k->no_hp }}</td>
                             <td>{{ $k->alamat }}</td>
                             <td>{{ $k->email }}</td>
-                            
-                            {{-- FORMAT TANGGAL --}}
-                            <td>
-                                {{ $k->tanggal_masuk ? $k->tanggal_masuk->format('d-m-Y') : '-' }}
-                            </td>
+                            <td>{{ $k->tanggal_masuk ? $k->tanggal_masuk->format('d-m-Y') : '-' }}</td>
 
-                            {{-- STATUS BADGE --}}
                             <td class="text-center">
                                 @if($k->status_aktif)
                                     <span class="badge bg-success">Aktif</span>
@@ -73,12 +116,9 @@
                                 @endif
                             </td>
 
-                            {{-- AKSI --}}
                             <td class="text-center">
                                 <a href="{{ route('karyawan.edit', $k->id) }}" 
-                                   class="btn btn-warning btn-sm">
-                                    ✏️
-                                </a>
+                                   class="btn btn-warning btn-sm">✏️</a>
 
                                 <form action="{{ route('karyawan.destroy', $k->id) }}" 
                                       method="POST" 
@@ -101,6 +141,57 @@
                         @endforelse
                     </tbody>
                 </table>
+            </div>
+
+            {{-- ================= MOBILE CARD ================= --}}
+            <div class="karyawan-mobile">
+                @forelse ($karyawans as $k)
+                <div class="karyawan-card">
+
+                    <h6>{{ $k->nama }}</h6>
+                    <small>{{ $k->jabatan }}</small>
+
+                    <div class="mt-2">
+                        📞 {{ $k->no_hp }} <br>
+                        📧 {{ $k->email }} <br>
+                        📍 {{ $k->alamat }}
+                    </div>
+
+                    <div class="mt-2">
+                        <strong>Tanggal Masuk:</strong><br>
+                        {{ $k->tanggal_masuk ? $k->tanggal_masuk->format('d-m-Y') : '-' }}
+                    </div>
+
+                    <div class="mt-2">
+                        <strong>Status:</strong><br>
+                        @if($k->status_aktif)
+                            <span class="badge bg-success">Aktif</span>
+                        @else
+                            <span class="badge bg-secondary">Nonaktif</span>
+                        @endif
+                    </div>
+
+                    <div class="d-flex gap-2 mt-3">
+                        <a href="{{ route('karyawan.edit', $k->id) }}" 
+                        class="btn btn-warning btn-sm w-10">
+                            ✏️
+                        </a>
+
+                        <form action="{{ route('karyawan.destroy', $k->id) }}" method="POST" class="flex-fill">
+                            @csrf
+                            @method('DELETE')
+                            <button class="btn btn-danger btn-sm w-100"
+                                    onclick="return confirm('Yakin hapus data?')">
+                                🗑️
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                @empty
+                <div class="text-center text-muted">
+                    Data karyawan belum tersedia
+                </div>
+                @endforelse
             </div>
 
             {{-- PAGINATION --}}

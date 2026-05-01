@@ -1,6 +1,35 @@
 @extends('layouts.app')
 
 @section('content')
+
+<style>
+/* ================= MOBILE ONLY ================= */
+@media (max-width: 768px) {
+
+    .container {
+        padding: 10px !important;
+    }
+
+    .card-body {
+        padding: 15px !important;
+    }
+
+    .form-label {
+        font-size: 14px;
+    }
+
+    .form-control {
+        font-size: 14px;
+        padding: 8px;
+    }
+
+    .btn {
+        font-size: 14px;
+        padding: 8px;
+    }
+}
+</style>
+
 <div class="container mt-4">
 
     <div class="card shadow-sm border-0">
@@ -36,7 +65,7 @@
                 </div>
 
                 {{-- JABATAN --}}
-                <div class="mb-3">
+                <div class="mb-4">
                     <label class="form-label">Jabatan</label>
                     <select name="jabatan" class="form-control">
                         <option value="">-- Pilih Jabatan --</option>

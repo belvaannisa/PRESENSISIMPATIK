@@ -44,6 +44,8 @@ class KaryawanController extends Controller
             'email' => 'nullable|email|unique:karyawans,email',
             'tanggal_masuk' => 'nullable|date',
             'status_aktif' => 'nullable|boolean',
+            'tipe_jam_keluar' => 'required',
+            'jam_keluar' => 'nullable|required_if:tipe_jam_keluar,terbatas'
         ]);
 
         Karyawan::create($request->only([
@@ -53,7 +55,9 @@ class KaryawanController extends Controller
             'alamat',
             'email',
             'tanggal_masuk',
-            'status_aktif'
+            'status_aktif',
+            'tipe_jam_keluar',
+            'jam_keluar'
         ]));
 
         return redirect()->route('karyawan.index')

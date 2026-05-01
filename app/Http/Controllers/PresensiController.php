@@ -2,75 +2,153 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Presensi;
+use App\Models\Karyawan;
+use Illuminate\Http\Request;
 
 class PresensiController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-   public function index(Request $request)
+    // ================= INDEX =================
+    public function index(Request $request)
     {
-    $search = $request->search;
+        $search = $request->search;
 
-    $presensis = Presensi::when($search, function ($query, $search) {
-        return $query->where('karyawan_id', 'like', "%$search%")
-                     ->orWhere('tanggal', 'like', "%$search%")
-                     ->orWhere('status', 'like', "%$search%");
-    })
-    ->latest()
-    ->paginate(5); // jumlah per halaman
+        $presensis = Presensi::with('karyawan')
+            ->when($search, function ($query) use ($search) {
+                $query->where('tanggal', 'like', "%$search%")
+                      ->orWhere('status', 'like', "%$search%")
+                      ->orWhereHas('karyawan', function ($q) use ($search) {
+                          $q->where('nama', 'like', "%$search%");
+                      });
+            })
+            ->latest()
+            ->paginate(10);
 
-    return view('presensi.index', compact('presensis', 'search'))
-        ->with('no', ($presensis->currentPage() - 1) * $presensis->perPage() + 1);
+        $no = ($presensis->currentPage() - 1) * $presensis->perPage() + 1;
+
+        return view('presensi.index', compact('presensis', 'search', 'no'));
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
+    // ================= AUTO =================
+    
+    public function importLocal()
+{
+    $path = 'C:/Users/LENOVO/datapresensi/incoming/';
+    $processedPath = 'C:/Users/LENOVO/datapresensi/processed/';
+    $failedPath = 'C:/Users/LENOVO/datapresensi/failed/';
+
+    $files = glob($path . '*.{csv,CSV}', GLOB_BRACE);
+
+    if (!$files) {
+        return back()->with('error', 'Tidak ada file untuk diimport!');
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        //
+    foreach ($files as $file) {
+        try {
+            if (!file_exists($file)) {
+                throw new \Exception('File tidak ditemukan');
+            }
+
+            $this->prosesCSV($file);
+
+            if (!is_dir($processedPath)) {
+                mkdir($processedPath, 0777, true);
+            }
+
+            rename($file, $processedPath . basename($file));
+
+        } catch (\Exception $e) {
+
+            if (!is_dir($failedPath)) {
+                mkdir($failedPath, 0777, true);
+            }
+
+            rename($file, $failedPath . basename($file));
+        }
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id)
+    return back()->with('success', 'Semua file berhasil diproses!');
+}
+    // ================= MANUAL =================
+    public function upload(Request $request)
     {
-        //
+        $request->validate([
+            'file' => 'required|mimes:csv,txt'
+        ]);
+
+        $file = $request->file('file')->getRealPath();
+
+        $this->prosesCSV($file);
+
+        return back()->with('success', 'Upload berhasil!');
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(string $id)
-    {
-        //
-    }
+    // ================= CORE =================
+    private function prosesCSV($file)
+{
+    $rows = array_map('str_getcsv', file($file));
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, string $id)
-    {
-        //
-    }
+    foreach ($rows as $index => $row) {
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id)
-    {
-        //
+        if ($index == 0) continue;
+
+        if (count($row) < 4) continue;
+
+        [$nama, $tanggal, $jam, $status] = $row;
+
+        $karyawan = Karyawan::where('nama', 'LIKE', "%$nama%")->first();
+
+        if (!$karyawan) continue;
+
+        // ===============================
+        // 🔥 LOGIKA TERLAMBAT
+        // ===============================
+        $jamMasuk = $jam;
+        $batasMasuk = '08:15';
+
+        $statusMasuk = (strtotime($jamMasuk) > strtotime($batasMasuk))
+            ? 'Terlambat'
+            : 'Tepat Waktu';
+
+        // ===============================
+        // 🔥 LOGIKA JAM KELUAR
+        // ===============================
+        $jamKeluar = null;
+
+        $jabatanDefault17 = [
+            'Supervisor',
+            'Sales',
+            'Pengiriman',
+            'Helper Pengiriman',
+            'Driver'
+        ];
+
+        if ($karyawan->tipe_jam_keluar == 'terbatas') {
+
+            $jamKeluar = $karyawan->jam_keluar;
+
+        } else {
+
+            if (in_array($karyawan->jabatan, $jabatanDefault17)) {
+                $jamKeluar = '17:00';
+            }
+        }
+
+        // ===============================
+        // SIMPAN DATA
+        // ===============================
+        Presensi::updateOrCreate(
+            [
+                'karyawan_id' => $karyawan->id,
+                'tanggal' => $tanggal,
+            ],
+            [
+                'jam_masuk' => $jamMasuk,
+                'jam_keluar' => $jamKeluar,
+                'status' => $statusMasuk,
+                'keterangan' => $status
+            ]
+        );
     }
+}
 }

@@ -6,6 +6,7 @@ use App\Http\Controllers\KaryawanController;
 use App\Http\Controllers\PresensiController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\LaporanController;
 
 
 Route::get('/dashboard', [DashboardController::class, 'index'])
@@ -22,6 +23,10 @@ Route::middleware('auth')->group(function () {
 });
 
 require __DIR__.'/auth.php';
+Route::get('/', function () {
+    return redirect()->route('login');
+}); 
+
 
 Route::resource('karyawan', KaryawanController::class)->middleware('auth');
 Route::resource('presensi', PresensiController::class)->middleware('auth');
@@ -33,3 +38,29 @@ Route::get('/presensi/keluar/{id}', [PresensiController::class, 'absenKeluar'])
 Route::middleware(['auth', 'role:pimpinan'])->group(function () {
     Route::get('/laporan', [PresensiController::class, 'index']);
 });
+
+Route::middleware('auth')->group(function () {
+
+    Route::get('/presensi', [PresensiController::class, 'index'])->name('presensi.index');
+
+    // AUTO
+    Route::post('/import-presensi', [PresensiController::class, 'importLocal'])
+    ->name('presensi.import');
+
+    // MANUAL
+    Route::post('/upload-presensi', [PresensiController::class, 'upload'])
+        ->name('presensi.upload');
+}); 
+
+Route::get('/laporan/presensi', [LaporanController::class, 'presensi'])
+    ->name('laporan.presensi');
+Route::get('/laporan/presensi/export', [LaporanController::class, 'exportPdf'])->name('laporan.presensi.export');
+
+Route::get('/laporan/presensi', [LaporanController::class, 'presensi'])
+    ->name('laporan.presensi');
+
+Route::get('/laporan/keterlambatan', [LaporanController::class, 'keterlambatan'])
+    ->name('laporan.keterlambatan');
+
+Route::get('/laporan/kedisiplinan', [LaporanController::class, 'kedisiplinan'])
+    ->name('laporan.kedisiplinan');
