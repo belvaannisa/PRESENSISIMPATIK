@@ -55,6 +55,25 @@
         </div>
 
         {{-- BODY --}}
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+
+    <form method="GET" class="d-flex gap-2">
+        <input type="month"
+               name="bulan"
+               value="{{ request('bulan', $bulan ?? now()->format('Y-m')) }}"
+               class="form-control">
+
+        <button class="btn btn-dark">
+            Filter
+        </button>
+    </form>
+
+    <a href="{{ route('laporan.keterlambatan.exportPdf', request()->all()) }}"
+       class="btn btn-danger">
+        🖨 Print PDF
+    </a>
+
+</div>
         <div class="card-body">
 
             {{-- ================= DESKTOP TABLE ================= --}}

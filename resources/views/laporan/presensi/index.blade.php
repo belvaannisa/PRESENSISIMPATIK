@@ -53,30 +53,43 @@
         </div>
 
         <div class="card-body">
+            {{-- FILTER + DOWNLOAD --}}
+            <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
 
-            {{-- FILTER --}}
-            <form method="GET" class="row mb-4 g-2">
-                <div class="col-md-3 col-12">
-                    <select name="mode" class="form-control" onchange="this.form.submit()">
-                        <option value="harian" {{ $mode=='harian'?'selected':'' }}>Harian</option>
-                        <option value="mingguan" {{ $mode=='mingguan'?'selected':'' }}>Mingguan</option>
-                        <option value="bulanan" {{ $mode=='bulanan'?'selected':'' }}>Bulanan</option>
-                    </select>
-                </div>
+    {{-- FILTER --}}
+    <form method="GET" class="row g-2 flex-grow-1">
 
-                <div class="col-md-3 col-12" id="tanggalField">
-                    <input type="date" name="tanggal" value="{{ $tanggal ?? '' }}" class="form-control">
-                </div>
+        <div class="col-md-3 col-12">
+            <select name="mode" class="form-control" onchange="this.form.submit()">
+                <option value="harian" {{ $mode=='harian'?'selected':'' }}>Harian</option>
+                <option value="mingguan" {{ $mode=='mingguan'?'selected':'' }}>Mingguan</option>
+                <option value="bulanan" {{ $mode=='bulanan'?'selected':'' }}>Bulanan</option>
+            </select>
+        </div>
 
-                <div class="col-md-3 col-12" id="bulanField">
-                    <input type="month" name="bulan" value="{{ $bulan ?? '' }}" class="form-control">
-                </div>
+        <div class="col-md-3 col-12" id="tanggalField">
+            <input type="date" name="tanggal" value="{{ $tanggal ?? '' }}" class="form-control">
+        </div>
 
-                <div class="col-md-2">
-                    <button class="btn btn-dark">Filter</button>
-                </div>
-            </form>
+        <div class="col-md-3 col-12" id="bulanField">
+            <input type="month" name="bulan" value="{{ $bulan ?? '' }}" class="form-control">
+        </div>
 
+        <div class="col-md-2 col-12">
+            <button class="btn btn-dark w-100">Filter</button>
+        </div>
+
+    </form>
+
+    {{-- DOWNLOAD BUTTON (KANAN) --}}
+    <div>
+        <a href="{{ route('laporan.presensi.exportPdf', request()->all()) }}"
+   class="btn btn-danger">
+    🖨 Print PDF
+</a>
+    </div>
+
+</div>
             {{-- ================= HARIAN & MINGGUAN ================= --}}
             @if($mode == 'harian' || $mode == 'mingguan')
 

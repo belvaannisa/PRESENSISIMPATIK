@@ -51,16 +51,25 @@ Route::middleware('auth')->group(function () {
     Route::post('/upload-presensi', [PresensiController::class, 'upload'])
         ->name('presensi.upload');
 }); 
+Route::middleware('auth')->group(function () {
 
-Route::get('/laporan/presensi', [LaporanController::class, 'presensi'])
-    ->name('laporan.presensi');
-Route::get('/laporan/presensi/export', [LaporanController::class, 'exportPdf'])->name('laporan.presensi.export');
+    Route::get('/laporan/presensi', [LaporanController::class, 'presensi'])
+        ->name('laporan.presensi');
 
-Route::get('/laporan/presensi', [LaporanController::class, 'presensi'])
-    ->name('laporan.presensi');
+    Route::get('/laporan/presensi/export-pdf', [LaporanController::class, 'exportPdf'])
+        ->name('laporan.presensi.exportPdf');
 
-Route::get('/laporan/keterlambatan', [LaporanController::class, 'keterlambatan'])
-    ->name('laporan.keterlambatan');
 
-Route::get('/laporan/kedisiplinan', [LaporanController::class, 'kedisiplinan'])
-    ->name('laporan.kedisiplinan');
+    Route::get('/laporan/keterlambatan', [LaporanController::class, 'keterlambatan'])
+        ->name('laporan.keterlambatan');
+
+    Route::get('/laporan/keterlambatan/export-pdf', [LaporanController::class, 'exportKeterlambatanPdf'])
+        ->name('laporan.keterlambatan.exportPdf');
+
+
+    Route::get('/laporan/kedisiplinan', [LaporanController::class, 'kedisiplinan'])
+        ->name('laporan.kedisiplinan');
+
+    Route::get('/laporan/kedisiplinan/export-pdf', [LaporanController::class, 'exportKedisiplinanPdf'])
+        ->name('laporan.kedisiplinan.exportPdf');
+});
