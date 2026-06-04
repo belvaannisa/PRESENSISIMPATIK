@@ -18,7 +18,8 @@ class Karyawan extends Model
         'tanggal_masuk',
         'status_aktif',
         'tipe_jam_keluar',
-        'jam_keluar'
+        'jam_keluar',
+        'pin'
     ];
 
     protected $casts = [

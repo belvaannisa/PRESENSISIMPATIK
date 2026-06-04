@@ -21,7 +21,7 @@ class PresensiController extends Controller
                           $q->where('nama', 'like', "%$search%");
                       });
             })
-            ->latest()
+            ->orderBy('id', 'asc') 
             ->paginate(10);
 
         $no = ($presensis->currentPage() - 1) * $presensis->perPage() + 1;
@@ -40,7 +40,7 @@ class PresensiController extends Controller
     $files = glob($path . '*.{csv,CSV}', GLOB_BRACE);
 
     if (!$files) {
-        return back()->with('error', 'Tidak ada file untuk diimport!');
+        return back()->with('error', 'Tidak Ada File Untuk Diimport!');
     }
 
     foreach ($files as $file) {
@@ -67,7 +67,7 @@ class PresensiController extends Controller
         }
     }
 
-    return back()->with('success', 'Semua file berhasil diproses!');
+    return back()->with('success', 'Semua File Berhasil Diproses!');
 }
     // ================= MANUAL =================
     public function upload(Request $request)
@@ -80,7 +80,7 @@ class PresensiController extends Controller
 
         $this->prosesCSV($file);
 
-        return back()->with('success', 'Upload berhasil!');
+        return back()->with('success', 'Data Presensi Berhasil Ditambahkan!');
     }
 
     // ================= CORE =================
@@ -94,7 +94,9 @@ class PresensiController extends Controller
 
         if (count($row) < 4) continue;
 
-        [$nama, $tanggal, $jam, $status] = $row;
+        [$nama, $tanggal, $jam, $keterangan] = $row;
+
+        $keterangan = preg_replace('/^\d{2}:\d{2}\s*/', '', trim($keterangan));
 
         $karyawan = Karyawan::where('nama', 'LIKE', "%$nama%")->first();
 
@@ -146,9 +148,52 @@ class PresensiController extends Controller
                 'jam_masuk' => $jamMasuk,
                 'jam_keluar' => $jamKeluar,
                 'status' => $statusMasuk,
-                'keterangan' => $status
+                'keterangan' => $keterangan
             ]
         );
+        
     }
 }
+        // ✏️ FORM EDIT
+    public function edit(Presensi $presensi)
+    {
+        return view('presensi.edit', compact('presensi'));
+    }
+
+    // 🔄 UPDATE
+    public function update(Request $request, Presensi $presensi)
+    {
+        $request->validate([
+            'jam_masuk' => 'required',
+            'keterangan' => 'nullable|string'
+        ]);
+
+        $jamMasuk = $request->jam_masuk;
+
+        // Jam kerja normal = 08:00
+        if ($jamMasuk > '08:15:00') {
+            $status = 'Terlambat';
+        } else {
+            $status = 'Hadir';
+        }
+
+        $presensi->update([
+            'jam_masuk' => $jamMasuk,
+            'status' => $status,
+            'keterangan' => $request->keterangan,
+        ]);
+
+        return redirect()
+            ->route('presensi.index')
+            ->with('success', 'Data Presensi Berhasil Diedit!');
+    }
+
+    // ❌ DELETE
+    public function destroy(Presensi $presensi)
+    {
+        $presensi->delete();
+
+        return redirect()->route('presensi.index')
+                         ->with('success', 'Data Presensi Berhasil Dihapus!');
+    }
 }

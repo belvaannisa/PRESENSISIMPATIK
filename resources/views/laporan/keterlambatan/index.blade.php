@@ -47,7 +47,7 @@
 
 <div class="container mt-4">
 
-    <div class="card shadow-sm border-0">
+    <div class="card shadow-sm">
 
         {{-- HEADER --}}
         <div class="card-header text-white" style="background: #FA713F;">
@@ -55,7 +55,8 @@
         </div>
 
         {{-- BODY --}}
-        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
 
     <form method="GET" class="d-flex gap-2">
         <input type="month"
@@ -79,7 +80,7 @@
             {{-- ================= DESKTOP TABLE ================= --}}
             <div class="table-responsive table-mobile">
                 <table class="table table-bordered table-striped">
-                    <thead class="text-white" style="background:#dc3545;">
+                    <thead class="text-center" class="text-white" style="background:#dc3545;">
                         <tr>
                             <th>Nama</th>
                             <th>Terlambat</th>
@@ -91,8 +92,8 @@
                         @forelse($data as $d)
                         <tr>
                             <td>{{ $d['nama'] }}</td>
-                            <td class="text-danger fw-bold">{{ $d['telat'] }}</td>
-                            <td>{{ $d['hadir'] }}</td>
+                            <td class="text-center" class="text-danger fw-bold">{{ $d['telat'] }}</td>
+                            <td class="text-center">{{ $d['hadir'] }}</td>
                             
                             <td class= "text-center">
                                 <span class="badge bg-danger">
@@ -102,7 +103,7 @@
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="4" class="text-center">Tidak ada data</td>
+                            <td colspan="4" class="text-center">Tidak Ada Data</td>
                         </tr>
                         @endforelse
                     </tbody>

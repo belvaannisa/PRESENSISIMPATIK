@@ -1,50 +1,74 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="container">
-    <h2>Edit Presensi</h2>
+<div class="container mt-4">
 
-    <form action="{{ route('presensi.update', $presensi->id) }}" method="POST">
-        @csrf
-        @method('PUT')
+    <div class="card shadow-sm border-0">
 
-        <div class="mb-3">
-            <label>ID Karyawan</label>
-            <input type="text" name="karyawan_id" class="form-control" value="{{ $presensi->karyawan_id }}">
+        <div class="card-header text-white"
+             style="background-color:#FA713F;">
+            <h5 class="mb-0">Edit Presensi</h5>
         </div>
 
-        <div class="mb-3">
-            <label>Tanggal</label>
-            <input type="text" name="tanggal" class="form-control" value="{{ $presensi->tanggal }}">
+        <div class="card-body">
+
+            <form action="{{ route('presensi.update', $presensi->id) }}"
+                  method="POST">
+
+                @csrf
+                @method('PUT')
+
+                {{-- Jam Masuk --}}
+                <div class="mb-3">
+                    <label class="form-label">
+                        Jam Masuk
+                    </label>
+
+                    <input type="time"
+                           name="jam_masuk"
+                           class="form-control"
+                           value="{{ old('jam_masuk', $presensi->jam_masuk) }}">
+                </div>
+
+                {{-- STATUS --}}
+                    <div class="mb-3">
+                        <label class="form-label">Status</label>
+                        <input type="text"
+                            class="form-control"
+                            value="{{ $presensi->status }}"
+                            readonly>
+                    </div>
+
+                {{-- Keterangan --}}
+                <div class="mb-3">
+                    <label class="form-label">
+                        Keterangan
+                    </label>
+
+                    <textarea name="keterangan"
+                              class="form-control"
+                              rows="3">{{ old('keterangan', $presensi->keterangan) }}</textarea>
+                </div>
+
+                <div class="d-flex justify-content-between">
+
+                    <a href="{{ route('presensi.index') }}"
+                       class="btn btn-secondary">
+                        Kembali
+                    </a>
+
+                    <button type="submit"
+                            class="btn btn-success">
+                        Simpan Perubahan
+                    </button>
+
+                </div>
+
+            </form>
+
         </div>
 
-        <div class="mb-3">
-            <label>Jam Masuk</label>
-            <input type="time" 
-                name="jam_masuk" 
-                class="form-control"
-                value="{{ old('jam_masuk', isset($presensi->jam_masuk) ? \Carbon\Carbon::parse($presensi->jam_masuk)->format('H:i') : '') }}">
-        </div>
+    </div>
 
-        <div class="mb-3">
-            <label>Jam Keluar</label>
-            <input type="time" 
-                name="jam_keluar" 
-                class="form-control"
-                value="{{ old('jam_keluar', isset($presensi->jam_keluar) ? \Carbon\Carbon::parse($presensi->jam_keluar)->format('H:i') : '') }}">
-        </div>
-
-        <div class="mb-3">
-            <label>Status</label>
-            <input type="text" name="status" class="form-control" value="{{ $presensi->status }}">
-        </div>
-
-        <div class="mb-3">
-            <label>Keterangan</label>
-            <input type="text" name="keterangan" class="form-control" value="{{ $presensi->keterangan }}">
-        </div>
-
-        <button class="btn btn-primary">Update</button>
-    </form>
 </div>
 @endsection

@@ -3,21 +3,6 @@
 @section('content')
 <div class="container mt-4">
 
-    {{-- NOTIFIKASI --}}
-    @if(session('success'))
-        <div class="alert alert-success alert-dismissible fade show">
-            {{ session('success') }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    @endif
-
-    @if(session('error'))
-        <div class="alert alert-danger alert-dismissible fade show">
-            {{ session('error') }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    @endif
-
     <div class="card shadow-sm border-0">
 
         {{-- HEADER --}}
@@ -36,8 +21,8 @@
         <div class="card-body">
 
             {{-- MANUAL UPLOAD --}}
-            <form action="{{ route('presensi.upload') }}" 
-                  method="POST" 
+            <form action="{{ route('presensi.upload') }}"
+                  method="POST"
                   enctype="multipart/form-data"
                   class="mb-3 d-flex flex-column flex-lg-row gap-2">
                 @csrf
@@ -46,14 +31,13 @@
             </form>
 
             {{-- SEARCH --}}
-            <div class="mb-3">
-                <form action="{{ route('presensi.index') }}" method="GET"
-                      class="d-flex flex-column flex-lg-row gap-2 justify-content-end">
-                    <input type="text" 
-                           name="search" 
-                           class="form-control" 
-                           placeholder="Cari nama / tanggal..." 
-                           value="{{ $search }}">
+            <div class="d-flex justify-content-end mb-3">
+                <form action="{{ route('presensi.index') }}" method="GET" class="d-flex">
+                    <input type="text"
+                           name="search"
+                           class="form-control me-2"
+                           placeholder="Cari nama / tanggal..."
+                           value="{{ request('search') }}">
                     <button class="btn btn-outline-secondary">Cari</button>
                 </form>
             </div>
@@ -70,33 +54,73 @@
                             <th>Keluar</th>
                             <th>Status</th>
                             <th>Keterangan</th>
+                            <th width="180">Aksi</th>
                         </tr>
                     </thead>
+
                     <tbody>
                         @forelse ($presensis as $p)
                         <tr>
+
                             <td class="text-center">{{ $no++ }}</td>
+
                             <td>{{ $p->karyawan->nama ?? '-' }}</td>
-                            <td>{{ \Carbon\Carbon::parse($p->tanggal)->format('d-m-Y') }}</td>
-                            <td>{{ $p->jam_masuk ?? '-' }}</td>
-                            <td>{{ $p->jam_keluar ?? '-' }}</td>
+
+                            <td class="text-center">
+                                {{ \Carbon\Carbon::parse($p->tanggal)->format('d-m-Y') }}
+                            </td>
+
+                            <td class="text-center">{{ $p->jam_masuk ?? '-' }}</td>
+
+                            <td class="text-center">{{ $p->jam_keluar ?? '-' }}</td>
 
                             <td class="text-center">
                                 @if($p->status == 'Terlambat')
-                                    <span class="badge bg-danger">Terlambat</span>
+                                    <span class="badge bg-danger">
+                                        Terlambat
+                                    </span>
                                 @else
-                                    <span class="badge bg-success">Tepat Waktu</span>
+                                    <span class="badge bg-success">
+                                        Tepat Waktu
+                                    </span>
                                 @endif
                             </td>
 
-                            <td class= "text-center">
-                                <span class="badge bg-success">{{ $p->keterangan ?? '-' }}</span>
+                            <td class="text-center">
+                                <span class="badge bg-info">
+                                    {{ $p->keterangan ?? '-' }}
+                                </span>
                             </td>
+
+                            <td class="text-center">
+
+                                <a href="{{ route('presensi.edit', $p->id) }}"
+                                   class="btn btn-warning btn-sm">
+                                    Edit
+                                </a>
+
+                                <form action="{{ route('presensi.destroy', $p->id) }}"
+                                      method="POST"
+                                      class="d-inline">
+
+                                    @csrf
+                                    @method('DELETE')
+
+                                    <button type="submit"
+                                            class="btn btn-danger btn-sm"
+                                            onclick="return confirm('Yakin ingin menghapus data presensi ini?')">
+                                        Hapus
+                                    </button>
+
+                                </form>
+
+                            </td>
+
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="7" class="text-center text-muted">
-                                Data presensi belum tersedia
+                            <td colspan="8" class="text-center text-muted">
+                                Data Presensi Belum Tersedia
                             </td>
                         </tr>
                         @endforelse
@@ -108,12 +132,14 @@
             <div class="d-lg-none">
 
                 @forelse ($presensis as $p)
+
                 <div class="card mb-3 shadow-sm border-0">
 
                     <div class="card-body">
 
                         <div class="d-flex justify-content-between">
                             <strong>{{ $p->karyawan->nama ?? '-' }}</strong>
+
                             <span class="text-muted small">
                                 {{ \Carbon\Carbon::parse($p->tanggal)->format('d-m-Y') }}
                             </span>
@@ -122,6 +148,7 @@
                         <hr class="my-2">
 
                         <div class="row small">
+
                             <div class="col-6">
                                 <strong>Masuk:</strong><br>
                                 {{ $p->jam_masuk ?? '-' }}
@@ -131,28 +158,65 @@
                                 <strong>Keluar:</strong><br>
                                 {{ $p->jam_keluar ?? '-' }}
                             </div>
+
                         </div>
 
                         <div class="mt-2">
                             <strong>Status:</strong><br>
+
                             @if($p->status == 'Terlambat')
-                                <span class="badge bg-danger">Terlambat</span>
+                                <span class="badge bg-danger">
+                                    Terlambat
+                                </span>
                             @else
-                                <span class="badge bg-success">Tepat Waktu</span>
+                                <span class="badge bg-success">
+                                    Tepat Waktu
+                                </span>
                             @endif
                         </div>
 
                         <div class="mt-2">
                             <strong>Keterangan:</strong><br>
-                            <span class="badge bg-success">{{ $p->keterangan ?? '-' }}</span>
+
+                            <span class="badge bg-info">
+                                {{ $p->keterangan ?? '-' }}
+                            </span>
+                        </div>
+
+                        <div class="mt-3 d-flex gap-2">
+
+                            <a href="{{ route('presensi.edit', $p->id) }}"
+                               class="btn btn-warning btn-sm w-50">
+                                Edit
+                            </a>
+
+                            <form action="{{ route('presensi.destroy', $p->id) }}"
+                                  method="POST"
+                                  class="w-50">
+
+                                @csrf
+                                @method('DELETE')
+
+                                <button type="submit"
+                                        class="btn btn-danger btn-sm w-100"
+                                        onclick="return confirm('Yakin ingin menghapus data presensi ini?')">
+                                    Hapus
+                                </button>
+
+                            </form>
+
                         </div>
 
                     </div>
+
                 </div>
+
                 @empty
-                    <div class="text-center text-muted">
-                        Data presensi belum tersedia
-                    </div>
+
+                <div class="text-center text-muted">
+                    Data presensi belum tersedia
+                </div>
+
                 @endforelse
 
             </div>

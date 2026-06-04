@@ -117,16 +117,6 @@
                 <button type="submit" class="btn btn-orange w-100">
                     Login
                 </button>
-
-                {{-- LUPA PASSWORD --}}
-                @if (Route::has('password.request'))
-                    <div class="text-center mt-3">
-                        <a href="{{ route('password.request') }}" class="text-decoration-none text-muted">
-                            Lupa Password?
-                        </a>
-                    </div>
-                @endif
-
             </form>
 
         </div>

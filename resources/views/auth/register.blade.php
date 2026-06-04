@@ -124,7 +124,35 @@
                            class="form-control" 
                            required>
                 </div>
+<div class="mb-3">
 
+    <label class="form-label">
+        Role
+    </label>
+
+    <select name="role"
+            class="form-control"
+            required>
+
+        <option value="">
+            -- Pilih Role --
+        </option>
+
+        <option value="admin">
+            Admin
+        </option>
+
+        <option value="kepala_personalia">
+            Kepala Personalia
+        </option>
+
+        <option value="pimpinan">
+            Pimpinan
+        </option>
+
+    </select>
+
+</div>
                 {{-- BUTTON --}}
                 <button type="submit" class="btn btn-orange w-100">
                     Register

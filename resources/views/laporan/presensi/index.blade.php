@@ -86,7 +86,7 @@
         <a href="{{ route('laporan.presensi.exportPdf', request()->all()) }}"
    class="btn btn-danger">
     🖨 Print PDF
-</a>
+        </a>
     </div>
 
 </div>
@@ -96,7 +96,7 @@
             {{-- DESKTOP --}}
             <div class="table-responsive table-mobile">
                 <table class="table table-bordered table-striped">
-                    <thead style="background:#FA713F;color:white;">
+                    <thead class="text-center style="background:#FA713F;color:white;">
                         <tr>
                             <th>Nama</th>
                             <th>Tanggal</th>
@@ -109,10 +109,10 @@
                         @forelse($data as $d)
                         <tr>
                             <td>{{ $d->karyawan->nama ?? '-' }}</td>
-                            <td>{{ $d->tanggal }}</td>
-                            <td>{{ $d->jam_masuk }}</td>
-                            <td>{{ $d->jam_keluar }}</td>
-                            <td>
+                            <td class="text-center">{{ $d->tanggal }}</td>
+                            <td class="text-center">{{ $d->jam_masuk }}</td>
+                            <td class="text-center">{{ $d->jam_keluar }}</td>
+                            <td class="text-center">
                                 @if($d->status == 'Terlambat')
                                     <span class="badge bg-danger">Terlambat</span>
                                 @else
@@ -122,7 +122,7 @@
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="5" class="text-center">Tidak ada data</td>
+                            <td colspan="5" class="text-center">Tidak Ada Data</td>
                         </tr>
                         @endforelse
                     </tbody>

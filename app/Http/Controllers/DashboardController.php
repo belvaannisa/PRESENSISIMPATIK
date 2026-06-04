@@ -7,23 +7,30 @@ use App\Models\Presensi;
 
 class DashboardController extends Controller
 {
-    public function index()
-    {
-        $totalKaryawan = Karyawan::count();
-        $totalPresensi = Presensi::count();
+  public function index()
+  {
+    $totalKaryawan = Karyawan::count();
 
-        $presensiHariIni = Presensi::whereDate('tanggal', now())->count();
+    $totalPresensi = Presensi::count();
 
-        $presensi = Presensi::with('karyawan')
-                        ->latest()
-                        ->take(5)
-                        ->get();
+    $presensiHariIni = Presensi::whereDate('tanggal', today())->count();
 
-        return view('dashboard', compact(
-            'totalKaryawan',
-            'totalPresensi',
-            'presensiHariIni',
-            'presensi'
-        ));
-    }
+    $tepatWaktu = Presensi::where('status', 'Tepat Waktu')->count();
+
+    $terlambat = Presensi::where('status', 'Terlambat')->count();
+
+    $presensi = Presensi::with('karyawan')
+        ->latest()
+        ->take(10)
+        ->get();
+
+    return view('dashboard', compact(
+        'totalKaryawan',
+        'totalPresensi',
+        'presensiHariIni',
+        'tepatWaktu',
+        'terlambat',
+        'presensi'
+    ));
+   }
 }

@@ -96,7 +96,7 @@
                             @empty
                             <tr>
                                 <td colspan="3" class="text-center text-muted">
-                                    Data belum tersedia
+                                    Data Belum Tersedia
                                 </td>
                             </tr>
                             @endforelse
@@ -104,9 +104,54 @@
                     </table>
                 </div>
             </div>
+               {{-- GRAFIK PRESENSI --}}
+                <div class="card mt-3">
+                    <div class="card-header text-white" style="background-color: #FA713F;">
+                        Grafik Presensi
+                    </div>
 
+                    <div class="card-body text-center">
+
+                        <canvas id="presensiChart"
+                                style="max-width:250px; max-height:250px; margin:auto;">
+                        </canvas>
+
+                    </div>
+                </div>
         </div>
     </div>
 
 </div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+const ctx = document.getElementById('presensiChart');
+
+new Chart(ctx, {
+    type: 'pie',
+    data: {
+        labels: ['Tepat Waktu', 'Terlambat'],
+        datasets: [{
+            data: [
+                {{ $tepatWaktu }},
+                {{ $terlambat }}
+            ],
+            backgroundColor: [
+                '#198754',
+                '#dc3545'
+            ],
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        }
+    }
+});
+</script>
 @endsection

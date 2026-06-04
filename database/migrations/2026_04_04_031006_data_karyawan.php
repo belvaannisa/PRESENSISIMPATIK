@@ -41,7 +41,7 @@ return new class extends Migration
     $table->date('tanggal_masuk')->nullable();
     $table->boolean('status_aktif')->default(true);
     $table->enum('tipe_jam_keluar' , ['Terbatas', 'tidak Terbatas'])->default ('terbatas');   
-    $table->time('jam keluar')->nullable();
+    $table->time('jam_keluar')->nullable();
     $table->timestamps();
 });
     }

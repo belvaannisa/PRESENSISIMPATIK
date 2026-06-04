@@ -60,11 +60,14 @@
              style="background-color: #FA713F;">
             <h5 class="mb-0">Data Karyawan</h5>
 
-            <a href="{{ route('karyawan.create') }}" 
-               class="btn text-dark btn-sm"
-               style="background-color: #FEECC8;">
-                ➕ Tambah
+            @if(auth()->user()->role != 'pimpinan')
+           <a href="{{ route('karyawan.tambah') }}"
+                class="btn text-dark btn-sm"
+                style="background-color: #FEECC8;">
+                    ➕ Tambah
             </a>
+            @endif
+
         </div>
 
         <div class="card-body">
@@ -94,13 +97,15 @@
                             <th>Email</th>
                             <th>Tanggal Masuk</th>
                             <th>Status</th>
-                            <th width="150">Aksi</th>
+                             @if(auth()->user()->role != 'pimpinan')
+                                <th width="150">Aksi</th>
+                            @endif
                         </tr>
                     </thead>
-                    <tbody>
+                   <tbody>
                         @forelse ($karyawans as $k)
                         <tr>
-                            <td>{{ $no++ }}</td>
+                            <td class="text-center">{{ $no++ }}</td>
                             <td>{{ $k->nama }}</td>
                             <td>{{ $k->jabatan }}</td>
                             <td>{{ $k->no_hp }}</td>
@@ -116,30 +121,42 @@
                                 @endif
                             </td>
 
+                            @if(auth()->user()->role != 'pimpinan')
                             <td class="text-center">
-                                <a href="{{ route('karyawan.edit', $k->id) }}" 
-                                   class="btn btn-warning btn-sm">✏️</a>
 
-                                <form action="{{ route('karyawan.destroy', $k->id) }}" 
-                                      method="POST" 
-                                      class="d-inline">
+                                <a href="{{ route('karyawan.edit', $k->id) }}"
+                                class="btn btn-warning btn-sm">
+                                    Edit
+                                </a>
+
+                                <form action="{{ route('karyawan.destroy', $k->id) }}"
+                                    method="POST"
+                                    class="d-inline">
+
                                     @csrf
                                     @method('DELETE')
-                                    <button class="btn btn-danger btn-sm"
-                                            onclick="return confirm('Yakin hapus data?')">
-                                        🗑️
+
+                                    <button type="submit"
+                                            class="btn btn-danger btn-sm"
+                                            onclick="return confirm('Yakin ingin menghapus data karyawan ini?')">
+                                        Hapus
                                     </button>
+
                                 </form>
+
                             </td>
+                            @endif
+
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="10" class="text-center text-muted">
-                                Data karyawan belum tersedia
+                            <td colspan="{{ auth()->user()->role == 'pimpinan' ? 8 : 9 }}"
+                                class="text-center text-muted">
+                                Data Karyawan Belum Tersedia
                             </td>
                         </tr>
                         @endforelse
-                    </tbody>
+                        </tbody>
                 </table>
             </div>
 
@@ -162,7 +179,7 @@
                         {{ $k->tanggal_masuk ? $k->tanggal_masuk->format('d-m-Y') : '-' }}
                     </div>
 
-                    <div class="mt-2">
+                   <div class="mt-2">
                         <strong>Status:</strong><br>
                         @if($k->status_aktif)
                             <span class="badge bg-success">Aktif</span>
@@ -171,25 +188,38 @@
                         @endif
                     </div>
 
-                    <div class="d-flex gap-2 mt-3">
-                        <a href="{{ route('karyawan.edit', $k->id) }}" 
-                        class="btn btn-warning btn-sm w-10">
-                            ✏️
+                    @if(auth()->user()->role != 'pimpinan')
+                    <div class="mt-3">
+
+                        <a href="{{ route('karyawan.edit', $k->id) }}"
+                        class="btn btn-warning btn-sm">
+                            Edit
                         </a>
 
-                        <form action="{{ route('karyawan.destroy', $k->id) }}" method="POST" class="flex-fill">
+                        <form action="{{ route('karyawan.destroy', $k->id) }}"
+                            method="POST"
+                            class="d-inline">
+
                             @csrf
                             @method('DELETE')
-                            <button class="btn btn-danger btn-sm w-100"
-                                    onclick="return confirm('Yakin hapus data?')">
-                                🗑️
+
+                            <button type="submit"
+                                    class="btn btn-danger btn-sm"
+                                    onclick="return confirm('Yakin ingin menghapus data karyawan ini?')">
+                                Hapus
                             </button>
+
                         </form>
+
                     </div>
+                    @endif
+
+                        </td>
+
                 </div>
                 @empty
                 <div class="text-center text-muted">
-                    Data karyawan belum tersedia
+                    Data karyawan Belum Tersedia
                 </div>
                 @endforelse
             </div>
