@@ -5,6 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Presensi;
 use App\Models\Karyawan;
 use Illuminate\Http\Request;
+use App\Models\PresensiLog;
+use Illuminate\Support\Facades\Http;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class PresensiController extends Controller
 {
@@ -32,127 +37,191 @@ class PresensiController extends Controller
     // ================= AUTO =================
     
     public function importLocal()
-{
-    $path = 'C:/Users/LENOVO/datapresensi/incoming/';
-    $processedPath = 'C:/Users/LENOVO/datapresensi/processed/';
-    $failedPath = 'C:/Users/LENOVO/datapresensi/failed/';
-
-    $files = glob($path . '*.{csv,CSV}', GLOB_BRACE);
-
-    if (!$files) {
-        return back()->with('error', 'Tidak Ada File Untuk Diimport!');
-    }
-
-    foreach ($files as $file) {
-        try {
-            if (!file_exists($file)) {
-                throw new \Exception('File tidak ditemukan');
-            }
-
-            $this->prosesCSV($file);
-
-            if (!is_dir($processedPath)) {
-                mkdir($processedPath, 0777, true);
-            }
-
-            rename($file, $processedPath . basename($file));
-
-        } catch (\Exception $e) {
-
-            if (!is_dir($failedPath)) {
-                mkdir($failedPath, 0777, true);
-            }
-
-            rename($file, $failedPath . basename($file));
-        }
-    }
-
-    return back()->with('success', 'Semua File Berhasil Diproses!');
-}
-    // ================= MANUAL =================
-    public function upload(Request $request)
     {
-        $request->validate([
-            'file' => 'required|mimes:csv,txt'
-        ]);
+        $path = 'C:/Users/LENOVO/datapresensi/incoming/';
+        $processedPath = 'C:/Users/LENOVO/datapresensi/processed/';
+        $failedPath = 'C:/Users/LENOVO/datapresensi/failed/';
 
-        $file = $request->file('file')->getRealPath();
+        $files = glob(
+            $path . '*.{csv,xls,xlsx}',
+            GLOB_BRACE
+        );
 
-        $this->prosesCSV($file);
+        if(empty($files))
+        {
+            return back()->with(
+                'error',
+                'Tidak ada file ditemukan'
+            );
+        }
 
-        return back()->with('success', 'Data Presensi Berhasil Ditambahkan!');
-    }
+        foreach($files as $file)
+        {
+            try {
 
-    // ================= CORE =================
-    private function prosesCSV($file)
-{
-    $rows = array_map('str_getcsv', file($file));
+                $rows = $this->bacaFile($file);
 
-    foreach ($rows as $index => $row) {
+                $this->prosesRows($rows);
 
-        if ($index == 0) continue;
+                if(!is_dir($processedPath))
+                {
+                    mkdir(
+                        $processedPath,
+                        0777,
+                        true
+                    );
+                }
 
-        if (count($row) < 4) continue;
+                rename(
+                    $file,
+                    $processedPath .
+                    basename($file)
+                );
 
-        [$nama, $tanggal, $jam, $keterangan] = $row;
+            }
+            catch(\Exception $e)
+            {
+                Log::error(
+                    'Import gagal : ' .
+                    $e->getMessage()
+                );
 
-        $keterangan = preg_replace('/^\d{2}:\d{2}\s*/', '', trim($keterangan));
+                if(!is_dir($failedPath))
+                {
+                    mkdir(
+                        $failedPath,
+                        0777,
+                        true
+                    );
+                }
 
-        $karyawan = Karyawan::where('nama', 'LIKE', "%$nama%")->first();
-
-        if (!$karyawan) continue;
-
-        // ===============================
-        // 🔥 LOGIKA TERLAMBAT
-        // ===============================
-        $jamMasuk = $jam;
-        $batasMasuk = '08:15';
-
-        $statusMasuk = (strtotime($jamMasuk) > strtotime($batasMasuk))
-            ? 'Terlambat'
-            : 'Tepat Waktu';
-
-        // ===============================
-        // 🔥 LOGIKA JAM KELUAR
-        // ===============================
-        $jamKeluar = null;
-
-        $jabatanDefault17 = [
-            'Supervisor',
-            'Sales',
-            'Pengiriman',
-            'Helper Pengiriman',
-            'Driver'
-        ];
-
-        if ($karyawan->tipe_jam_keluar == 'terbatas') {
-
-            $jamKeluar = $karyawan->jam_keluar;
-
-        } else {
-
-            if (in_array($karyawan->jabatan, $jabatanDefault17)) {
-                $jamKeluar = '17:00';
+                rename(
+                    $file,
+                    $failedPath .
+                    basename($file)
+                );
             }
         }
 
-        // ===============================
-        // SIMPAN DATA
-        // ===============================
-        Presensi::updateOrCreate(
-            [
-                'karyawan_id' => $karyawan->id,
-                'tanggal' => $tanggal,
-            ],
-            [
-                'jam_masuk' => $jamMasuk,
-                'jam_keluar' => $jamKeluar,
-                'status' => $statusMasuk,
-                'keterangan' => $keterangan
-            ]
+        try {
+
+    $this->sinkronisasiPresensi();
+
+} catch (\Exception $e) {
+
+    Log::error(
+        'Sinkronisasi gagal : ' .
+        $e->getMessage()
+    );
+}
+
+        return back()->with(
+            'success',
+            'Auto Import Berhasil'
         );
-        
     }
+
+
+        // ================= MANUAL =================
+        public function upload(Request $request)
+{
+    $request->validate([
+        'file' => 'required|mimes:csv,txt,xls,xlsx'
+    ]);
+
+    try {
+
+        $file = $request->file('file');
+
+        $rows = $this->bacaFile(
+            $file->getRealPath(),
+            $file->getClientOriginalExtension()
+        );
+
+        $this->prosesRows($rows);
+
+        $this->sinkronisasiPresensi();
+
+        return back()->with(
+            'success',
+            'Import Berhasil'
+        );
+
+    } catch (\Exception $e) {
+
+        Log::error(
+            'Upload gagal : ' .
+            $e->getMessage()
+        );
+
+        return back()->with(
+            'error',
+            $e->getMessage()
+        );
+    }
+}
+
+
+    private function prosesLogKePresensi(
+    $karyawan,
+    $log
+)
+{
+    $presensi = Presensi::firstOrCreate([
+        'karyawan_id' => $karyawan->id,
+        'tanggal' => $log->tanggal
+    ]);
+
+    if (
+        !$presensi->jam_masuk ||
+        $log->jam < $presensi->jam_masuk
+    ) {
+        $presensi->jam_masuk = $log->jam;
+    }
+
+    if (
+        !$presensi->jam_keluar ||
+        $log->jam > $presensi->jam_keluar
+    ) {
+        $presensi->jam_keluar = $log->jam;
+    }
+
+    $presensi->status =
+        strtotime($presensi->jam_masuk)
+        > strtotime('08:15:00')
+        ? 'Terlambat'
+        : 'Hadir';
+
+    $presensi->save();
+}
+
+
+private function bacaFile($filePath, $extension = null)
+{
+    if (!$extension) {
+
+        $extension = strtolower(
+            pathinfo(
+                $filePath,
+                PATHINFO_EXTENSION
+            )
+        );
+    }
+
+    if (in_array($extension, ['xls', 'xlsx'])) {
+
+        $spreadsheet = IOFactory::load($filePath);
+
+        return $spreadsheet
+            ->getActiveSheet()
+            ->toArray();
+    }
+
+    return array_map(function ($line) {
+
+        return str_getcsv($line, ';');
+
+    }, file($filePath));
 }
         // ✏️ FORM EDIT
     public function edit(Presensi $presensi)
@@ -188,6 +257,123 @@ class PresensiController extends Controller
             ->with('success', 'Data Presensi Berhasil Diedit!');
     }
 
+        private function prosesRows($rows)
+    {
+        foreach($rows as $index => $row)
+        {
+            if($index == 0)
+            {
+                continue;
+            }
+
+            if(count($row) < 8)
+            {
+                continue;
+            }
+
+            $nama = trim($row[1]);
+            $pin = trim($row[2]);
+            $datetime = trim($row[3]);
+            $verifyCode = trim($row[6]);
+
+            if(
+                empty($pin) ||
+                empty($datetime)
+            ){
+                continue;
+            }
+
+           try {
+
+             $dt = Carbon::parse($datetime);
+
+            } catch (\Exception $e) {
+
+                continue;
+            }
+
+            $tanggal = $dt->format('Y-m-d');
+            $jam = $dt->format('H:i:s');
+
+            $sudahAda = PresensiLog::where(
+                'pin',
+                $pin
+            )
+            ->where(
+                'tanggal',
+                $tanggal
+            )
+            ->where(
+                'jam',
+                $jam
+            )
+            ->exists();
+
+            if($sudahAda)
+            {
+                continue;
+            }
+
+            $log = PresensiLog::create([
+                'pin' => $pin,
+                'nama' => $nama,
+                'tanggal' => $tanggal,
+                'jam' => $jam,
+                'verify_code' => $verifyCode,
+                'status_sinkron' => 'pending'
+            ]);
+
+            $this->kirimKeVps($log);
+        }
+    }
+
+   private function sinkronisasiPresensi()
+{
+    $logs = PresensiLog::where(
+        'status_sinkron',
+        'pending'
+    )->get();
+
+    foreach ($logs as $log) {
+
+        try {
+
+            $karyawan = Karyawan::where(
+                'pin',
+                $log->pin
+            )->first();
+
+            if (!$karyawan) {
+
+                Log::warning(
+                    'PIN tidak ditemukan : ' .
+                    $log->pin
+                );
+
+                continue;
+            }
+
+            $this->prosesLogKePresensi(
+                $karyawan,
+                $log
+            );
+
+            $log->update([
+                'status_sinkron' => 'success'
+            ]);
+
+        } catch (\Exception $e) {
+
+            Log::error(
+                'Gagal sinkron PIN ' .
+                $log->pin .
+                ' : ' .
+                $e->getMessage()
+            );
+        }
+    }
+}
+
     // ❌ DELETE
     public function destroy(Presensi $presensi)
     {
@@ -196,4 +382,29 @@ class PresensiController extends Controller
         return redirect()->route('presensi.index')
                          ->with('success', 'Data Presensi Berhasil Dihapus!');
     }
+
+    private function kirimKeVps($log)
+{
+    try {
+
+        Http::withHeaders([
+            'X-API-KEY' => env('FINGERPRINT_API_KEY')
+        ])->post(
+            'https://domain-kamu.com/api/presensi/upload',
+            [
+                'pin'      => $log->pin,
+                'nama'     => $log->nama,
+                'tanggal'  => $log->tanggal,
+                'jam'      => $log->jam
+            ]
+        );
+
+    } catch (\Exception $e) {
+
+        \Log::error(
+            'Gagal kirim VPS : ' .
+            $e->getMessage()
+        );
+    }
+}
 }

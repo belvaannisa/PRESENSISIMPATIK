@@ -45,6 +45,13 @@
             <form action="{{ route('karyawan.update', $karyawan->id) }}" method="POST">
                 @csrf
                 @method('PUT')
+                <div class="mb-3">
+    <label class="form-label">PIN Fingerprint</label>
+    <input type="text"
+           name="pin"
+           class="form-control"
+           value="{{ old('pin', $karyawan->pin ?? '') }}">
+</div>
 
                 {{-- NAMA --}}
                 <div class="mb-3">

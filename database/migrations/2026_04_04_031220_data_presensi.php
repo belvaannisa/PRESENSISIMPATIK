@@ -25,6 +25,11 @@ return new class extends Migration
             $table->timestamps();
 
             $table->unique(['karyawan_id', 'tanggal']);
+
+            $table->enum('sumber', [
+                'fingerprint',
+                'manual'
+            ])->default('fingerprint');
         });
     }
 

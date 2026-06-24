@@ -45,6 +45,7 @@ class KaryawanController extends Controller
     public function store(Request $request)
     {
     $request->validate([
+         'pin' => 'nullable|string|unique:karyawans,pin',
         'nama' => 'required|string|max:255',
         'jabatan' => 'required',
         'no_hp' => 'nullable|string|max:20',
@@ -57,6 +58,7 @@ class KaryawanController extends Controller
     ]);
 
     Karyawan::create([
+            'pin' => $request->pin,
         'nama' => $request->nama,
         'jabatan' => $request->jabatan,
         'no_hp' => $request->no_hp,
@@ -92,6 +94,7 @@ class KaryawanController extends Controller
     public function update(Request $request, Karyawan $karyawan)
     {
         $request->validate([
+                'pin' => 'nullable|string|unique:karyawans,pin,' . $karyawan->id,
             'nama' => 'required|string|max:255',
             'jabatan' => 'required',
             'no_hp' => 'nullable|string|max:20',
@@ -101,14 +104,17 @@ class KaryawanController extends Controller
             'status_aktif' => 'nullable|boolean',
         ]);
 
-        $karyawan->update($request->only([
+            $karyawan->update($request->only([
+            'pin',
             'nama',
             'jabatan',
             'no_hp',
             'alamat',
             'email',
             'tanggal_masuk',
-            'status_aktif'
+            'status_aktif',
+            'tipe_jam_keluar',
+            'jam_keluar'
         ]));
 
         return redirect()->route('karyawan.index')

@@ -49,6 +49,7 @@
         display: none;
     }
 }
+
 </style>
 
 <div class="container mt-4">
@@ -225,10 +226,12 @@
             </div>
 
             {{-- PAGINATION --}}
-            <div class="mt-3 d-flex justify-content-center">
-                {{ $karyawans->appends(['search' => request('search')])->links() }}
-            </div>
+            <div class="mt-3 text-center">
+                <div class="d-flex justify-content-center">
+                    {{ $karyawans->appends(['search' => request('search')])->links() }}
+                </div>
 
+            </div>
         </div>
     </div>
 

@@ -10,17 +10,19 @@ class Karyawan extends Model
     use HasFactory;
 
     protected $fillable = [
-        'nama',
-        'jabatan',
-        'no_hp',
-        'alamat',
-        'email',
-        'tanggal_masuk',
-        'status_aktif',
-        'tipe_jam_keluar',
-        'jam_keluar',
-        'pin'
-    ];
+    'pin',
+    'nama',
+    'jabatan',
+    'no_hp',
+    'alamat',
+    'email',
+    'tanggal_masuk',
+    'jam_masuk',
+    'jam_keluar',
+    'tipe_jam_keluar',
+    'status_aktif',
+    'sinkron_fingerprint'
+];
 
     protected $casts = [
         'tanggal_masuk' => 'date',
@@ -50,5 +52,10 @@ class Karyawan extends Model
 public function presensis()
 {
     return $this->hasMany(Presensi::class);
+}
+
+public function presensiLogs()
+{
+    return $this->hasMany(PresensiLog::class);
 }
 }

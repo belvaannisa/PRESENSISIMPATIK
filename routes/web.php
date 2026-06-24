@@ -7,6 +7,8 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\KaryawanController;
 use App\Http\Controllers\PresensiController;
 use App\Http\Controllers\LaporanController;
+use App\Http\Controllers\Api\PresensiApiController;
+
 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 
@@ -27,6 +29,7 @@ Route::get('/tes', function () {
     return 'TES BERHASIL';
 });
 Route::get('/tes-create', [KaryawanController::class, 'create']);
+
 
 
 /*
@@ -163,10 +166,10 @@ Route::get('/karyawan/tambah', [KaryawanController::class, 'create'])
 |--------------------------------------------------------------------------
 */
 
-Route::middleware([
-    'auth',
-    'role:admin,kepala_personalia'
-])->group(function () {
+    Route::middleware([
+        'auth',
+        'role:admin,kepala_personalia'
+    ])->group(function () {
 
     /*
     |--------------------------------------------------------------------------
@@ -208,12 +211,16 @@ Route::middleware([
     |--------------------------------------------------------------------------
     */
 
-    Route::post('/import-presensi', [
-        PresensiController::class,
-        'importLocal'
-    ])->name('presensi.import');
+        Route::post(
+            '/presensi/auto-import',
+            [PresensiController::class,'importLocal']
+        )->name('presensi.autoimport');
 
-
+        Route::post(
+            '/presensi/import',
+            [PresensiController::class,
+            'importLocal']
+        )->name('presensi.import');
 
     /*
     |--------------------------------------------------------------------------
@@ -225,23 +232,22 @@ Route::middleware([
         PresensiController::class,
         'upload'
     ])->name('presensi.upload');
-
-});
-
+    });
 
 
-/*
-|--------------------------------------------------------------------------
-| LAPORAN
-|--------------------------------------------------------------------------
-| Semua role bisa melihat laporan
-|--------------------------------------------------------------------------
-*/
 
-Route::middleware([
-    'auth',
-    'role:admin,kepala_personalia,pimpinan'
-])->group(function () {
+    /*
+    |--------------------------------------------------------------------------
+    | LAPORAN
+    |--------------------------------------------------------------------------
+    | Semua role bisa melihat laporan
+    |--------------------------------------------------------------------------
+    */
+
+    Route::middleware([
+        'auth',
+        'role:admin,kepala_personalia,pimpinan'
+    ])->group(function () {
 
     /*
     |--------------------------------------------------------------------------

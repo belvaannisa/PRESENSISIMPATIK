@@ -16,3 +16,7 @@ Route::post('/presensi/import', [
     PresensiApiController::class,
     'import'
 ]);
+Route::post(
+    '/presensi/upload',
+    [PresensiApiController::class,'store']
+);

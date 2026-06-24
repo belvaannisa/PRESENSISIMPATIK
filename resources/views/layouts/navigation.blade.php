@@ -56,6 +56,14 @@
                 </li>
                 @endif
 
+                {{-- LOG PRESENSI}}
+                <li class="nav-item">
+                    <a href="{{ route('presensi-log.index') }}"
+                    class="nav-link">
+                        Presensi Log
+                    </a>
+                </li>
+
                 {{-- LAPORAN --}}
                 <li class="nav-item dropdown">
 
@@ -190,6 +198,13 @@
             </li>
             @endif
 
+            <li class="nav-item">
+                <a href=""
+                class="nav-link">
+                    📅 Presensi Log
+                </a>
+            </li>
+            
             <li class="nav-item mt-3">
                 <strong>📊 Laporan</strong>
             </li>
