@@ -7,7 +7,6 @@ use App\Models\Karyawan;
 use Illuminate\Http\Request;
 use App\Models\PresensiLog;
 use Illuminate\Support\Facades\Http;
-use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
@@ -55,8 +54,12 @@ class PresensiController extends Controller
             );
         }
 
+        
         foreach($files as $file)
         {
+            if(!file_exists($file)){
+                continue;
+            }
             try {
 
                 $rows = $this->bacaFile($file);
@@ -119,6 +122,8 @@ class PresensiController extends Controller
             'success',
             'Auto Import Berhasil'
         );
+
+        
     }
 
 
@@ -199,13 +204,7 @@ class PresensiController extends Controller
 private function bacaFile($filePath, $extension = null)
 {
     if (!$extension) {
-
-        $extension = strtolower(
-            pathinfo(
-                $filePath,
-                PATHINFO_EXTENSION
-            )
-        );
+        $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
     }
 
     if (in_array($extension, ['xls', 'xlsx'])) {
@@ -214,12 +213,20 @@ private function bacaFile($filePath, $extension = null)
 
         return $spreadsheet
             ->getActiveSheet()
-            ->toArray();
+            ->toArray(
+                null,
+                true,
+                true,
+                false
+            );
     }
 
     return array_map(function ($line) {
 
-        return str_getcsv($line, ';');
+        return str_getcsv(
+            trim($line),
+            ';'
+        );
 
     }, file($filePath));
 }
@@ -271,7 +278,17 @@ private function bacaFile($filePath, $extension = null)
                 continue;
             }
 
-            $nama = trim($row[1]);
+            $nama = trim(
+                preg_replace(
+
+                    '/^\xEF\xBB\xBF/',
+
+                    '',
+
+                    $row[1]
+
+                )
+            );
             $pin = trim($row[2]);
             $datetime = trim($row[3]);
             $verifyCode = trim($row[6]);
@@ -283,34 +300,29 @@ private function bacaFile($filePath, $extension = null)
                 continue;
             }
 
-           try {
+          try{
 
-             $dt = Carbon::parse($datetime);
+                $dt = new \DateTime($datetime);
 
-            } catch (\Exception $e) {
+            }catch(\Exception $e){
+
+                Log::warning(
+                    'Format tanggal salah : '.$datetime
+                );
 
                 continue;
             }
 
-            $tanggal = $dt->format('Y-m-d');
+                    $tanggal = $dt->format('Y-m-d');
             $jam = $dt->format('H:i:s');
 
-            $sudahAda = PresensiLog::where(
-                'pin',
-                $pin
-            )
-            ->where(
-                'tanggal',
-                $tanggal
-            )
-            ->where(
-                'jam',
-                $jam
-            )
-            ->exists();
+                        $sudahAda = PresensiLog::where([
+                'pin'=>$pin,
+                'tanggal'=>$tanggal,
+                'jam'=>$jam
+            ])->exists();
 
-            if($sudahAda)
-            {
+            if($sudahAda){
                 continue;
             }
 
@@ -343,15 +355,22 @@ private function bacaFile($filePath, $extension = null)
                 $log->pin
             )->first();
 
-            if (!$karyawan) {
+           if(!$karyawan){
 
-                Log::warning(
-                    'PIN tidak ditemukan : ' .
-                    $log->pin
-                );
+                            $log->update([
 
-                continue;
-            }
+                                'status_sinkron'=>'unmatched'
+
+                            ]);
+
+                            Log::warning(
+
+                                'PIN '.$log->pin.' tidak ditemukan'
+
+                            );
+
+                            continue;
+                        }
 
             $this->prosesLogKePresensi(
                 $karyawan,
@@ -383,26 +402,48 @@ private function bacaFile($filePath, $extension = null)
                          ->with('success', 'Data Presensi Berhasil Dihapus!');
     }
 
-    private function kirimKeVps($log)
+   private function kirimKeVps($log)
 {
     try {
 
-        Http::withHeaders([
-            'X-API-KEY' => env('FINGERPRINT_API_KEY')
-        ])->post(
-            'https://domain-kamu.com/api/presensi/upload',
-            [
-                'pin'      => $log->pin,
-                'nama'     => $log->nama,
-                'tanggal'  => $log->tanggal,
-                'jam'      => $log->jam
-            ]
-        );
+        $response = Http::retry(3, 500)               // Nomor 15
+            ->timeout(10)                            // Nomor 14
+            ->withHeaders([
+                'X-API-KEY' => env('FINGERPRINT_API_KEY')
+            ])
+            ->post(
+                env('SERVER_API') . '/api/presensi/upload',   // Nomor 8
+                [
+                    'pin'         => $log->pin,
+                    'nama'        => $log->nama,
+                    'tanggal'     => $log->tanggal,
+                    'jam'         => $log->jam,
+                    'verify_code' => $log->verify_code
+                ]
+            );
+
+        if (!$response->successful()) {
+
+            Log::error(
+                'Upload VPS gagal : ' .
+                $response->status() .
+                ' | ' .
+                $response->body()
+            );
+
+        } else {
+
+            Log::info(
+                'Upload VPS berhasil : PIN ' .
+                $log->pin
+            );
+
+        }
 
     } catch (\Exception $e) {
 
-        \Log::error(
-            'Gagal kirim VPS : ' .
+        Log::error(
+            'Exception Upload VPS : ' .
             $e->getMessage()
         );
     }

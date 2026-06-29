@@ -10,6 +10,7 @@ use App\Http\Controllers\LaporanController;
 use App\Http\Controllers\Api\PresensiApiController;
 
 
+
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 
 
@@ -306,5 +307,15 @@ Route::get('/karyawan/tambah', [KaryawanController::class, 'create'])
         LaporanController::class,
         'exportKedisiplinanPdf'
     ])->name('laporan.kedisiplinan.exportPdf');
+
+});
+
+
+Route::middleware('apikey')->group(function () {
+
+    Route::post(
+        '/presensi/upload',
+        [PresensiApiController::class,'upload']
+    );
 
 });

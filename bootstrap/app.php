@@ -19,6 +19,14 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
     })
+    ->withMiddleware(function ($middleware) {
+
+    $middleware->alias([
+        'apikey' => \App\Http\Middleware\VerifyApiKey::class,
+    ]);
+
+    })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
     })->create();
+    

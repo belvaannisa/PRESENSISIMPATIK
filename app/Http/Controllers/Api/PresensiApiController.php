@@ -3,82 +3,130 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\PresensiLog;
 use Illuminate\Http\Request;
+use App\Models\PresensiLog;
+use App\Models\Presensi;
+use App\Models\Karyawan;
+use Carbon\Carbon;
 
 class PresensiApiController extends Controller
 {
-    public function importFolder()
+
+    public function upload(Request $request)
     {
-        $folder =
-        'C:/Users/LENOVO/datapresensi/incoming/';
 
-       $files = glob(
-        $incomingPath . '*.{csv,xls,xlsx}',
-        GLOB_BRACE
-    );
-        if(!$files)
-        {
-            return back()
-            ->with(
-                'error',
-                'File tidak ditemukan'
-            );
+        $request->validate([
+
+            'pin'=>'required',
+
+            'nama'=>'required',
+
+            'tanggal'=>'required',
+
+            'jam'=>'required'
+
+        ]);
+
+        $cek = PresensiLog::where('pin',$request->pin)
+
+            ->where('tanggal',$request->tanggal)
+
+            ->where('jam',$request->jam)
+
+            ->exists();
+
+        if($cek){
+
+            return response()->json([
+
+                'success'=>true,
+
+                'message'=>'Duplicate'
+
+            ]);
+
         }
 
-        foreach($files as $file)
-        {
-            $file = $request->file('file');
+        $log = PresensiLog::create([
 
-    $this->prosesFile(
-        $file->getRealPath()
-    );
+            'pin'=>$request->pin,
 
-    $request->validate([
-    'file' => 'required|mimes:csv,xls,xlsx,txt'
-    ]);
-            foreach($rows as $index => $row)
-            {
-                if($index == 0)
-                {
-                    continue;
-                }
+            'nama'=>$request->nama,
 
-                if(count($row) < 8)
-                {
-                    continue;
-                }
+            'tanggal'=>$request->tanggal,
 
-                [
-                    $department,
-                    $nama,
-                    $pin,
-                    $datetime,
-                    $location,
-                    $idNumber,
-                    $verifyCode,
-                    $cardNo
-                ] = $row;
+            'jam'=>$request->jam,
 
-                $dt =
-                \Carbon\Carbon::parse(
-                    $datetime
-                );
+            'verify_code'=>'API',
 
-                PresensiLog::create([
-                    'pin' => trim($pin),
-                    'nama' => trim($nama),
-                    'tanggal' => $dt->format('Y-m-d'),
-                    'jam' => $dt->format('H:i:s'),
-                    'verify_code' => $verifyCode,
-                    'status_sinkron' => 'pending'
-                ]);
+            'status_sinkron'=>'pending'
+
+        ]);
+
+        $karyawan = Karyawan::where('pin',$log->pin)
+
+            ->orWhere('nama',$log->nama)
+
+            ->first();
+
+        if($karyawan){
+
+            $presensi = Presensi::firstOrCreate([
+
+                'karyawan_id'=>$karyawan->id,
+
+                'tanggal'=>$log->tanggal
+
+            ]);
+
+            if(!$presensi->jam_masuk || $log->jam < $presensi->jam_masuk){
+
+                $presensi->jam_masuk=$log->jam;
+
             }
+
+            if(!$presensi->jam_keluar || $log->jam > $presensi->jam_keluar){
+
+                $presensi->jam_keluar=$log->jam;
+
+            }
+
+            $presensi->status=
+
+                strtotime($presensi->jam_masuk)>
+
+                strtotime('08:15:00')
+
+                ?
+
+                'Terlambat'
+
+                :
+
+                'Tepat Waktu';
+
+            $presensi->save();
+
+            $log->update([
+
+                'status_sinkron'=>'matched',
+
+                'karyawan_id'=>$karyawan->id
+
+            ]);
+
         }
 
-        return back()->with(
-            'success',
-            'Import berhasil'
-        );
+        return response()->json([
+
+            'success'=>true,
+
+            'message'=>'Berhasil',
+
+            'data'=>$log
+
+        ]);
+
     }
+
 }
