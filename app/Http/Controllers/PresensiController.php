@@ -56,7 +56,9 @@ class PresensiController extends Controller
 
         
         foreach($files as $file)
+            
         {
+            
             if(!file_exists($file)){
                 continue;
             }
@@ -75,11 +77,13 @@ class PresensiController extends Controller
                     );
                 }
 
-                rename(
-                    $file,
-                    $processedPath .
-                    basename($file)
-                );
+               if(file_exists($file))
+                {
+                    rename(
+                        $file,
+                        $processedPath.basename($file)
+                    );
+                }
 
             }
             catch(\Exception $e)
@@ -130,6 +134,7 @@ class PresensiController extends Controller
         // ================= MANUAL =================
         public function upload(Request $request)
 {
+    Log::info('===== MANUAL UPLOAD =====');
     $request->validate([
         'file' => 'required|mimes:csv,txt,xls,xlsx'
     ]);
@@ -142,12 +147,19 @@ class PresensiController extends Controller
             $file->getRealPath(),
             $file->getClientOriginalExtension()
         );
+        Log::info(
+                'Jumlah baris upload : '.count($rows)
+            );
 
-        $this->prosesRows($rows);
+       $this->prosesRows($rows);
 
-        $this->sinkronisasiPresensi();
+$this->sinkronisasiPresensi();
 
-        return back()->with(
+$this->kirimDataPendingKeVps();
+        Log::info(
+            'Manual Upload : '.$file->getClientOriginalName()
+        );
+                return back()->with(
             'success',
             'Import Berhasil'
         );
@@ -164,38 +176,39 @@ class PresensiController extends Controller
             $e->getMessage()
         );
     }
+    Log::info(
+    'Manual Upload : '.$file->getClientOriginalName()
+);
 }
 
 
-    private function prosesLogKePresensi(
-    $karyawan,
-    $log
-)
+  private function prosesLogKePresensi($karyawan, $log)
 {
-    $presensi = Presensi::firstOrCreate([
-        'karyawan_id' => $karyawan->id,
-        'tanggal' => $log->tanggal
-    ]);
+    $presensi = Presensi::firstOrCreate(
+        [
+            'karyawan_id' => $karyawan->id,
+            'tanggal'     => $log->tanggal,
+        ],
+        [
+            'keterangan'  => 'Hadir',
+            'status'      => 'Hadir'
+        ]
+    );
 
-    if (
-        !$presensi->jam_masuk ||
-        $log->jam < $presensi->jam_masuk
-    ) {
+    if (!$presensi->jam_masuk || $log->jam < $presensi->jam_masuk) {
         $presensi->jam_masuk = $log->jam;
     }
 
-    if (
-        !$presensi->jam_keluar ||
-        $log->jam > $presensi->jam_keluar
-    ) {
+    if (!$presensi->jam_keluar || $log->jam > $presensi->jam_keluar) {
         $presensi->jam_keluar = $log->jam;
     }
 
     $presensi->status =
-        strtotime($presensi->jam_masuk)
-        > strtotime('08:15:00')
+        strtotime($presensi->jam_masuk) > strtotime('08:15:00')
         ? 'Terlambat'
-        : 'Hadir';
+        : 'Tepat Waktu';
+
+    $presensi->keterangan = 'Hadir';
 
     $presensi->save();
 }
@@ -221,14 +234,15 @@ private function bacaFile($filePath, $extension = null)
             );
     }
 
-    return array_map(function ($line) {
+        return array_map(function ($line) {
 
-        return str_getcsv(
-            trim($line),
-            ';'
-        );
+            return str_getcsv(
+                trim($line),
+                ';',
+                '"'
+            );
 
-    }, file($filePath));
+        }, file($filePath));
 }
         // ✏️ FORM EDIT
     public function edit(Presensi $presensi)
@@ -264,80 +278,88 @@ private function bacaFile($filePath, $extension = null)
             ->with('success', 'Data Presensi Berhasil Diedit!');
     }
 
-        private function prosesRows($rows)
-    {
-        foreach($rows as $index => $row)
-        {
-            if($index == 0)
-            {
-                continue;
-            }
+      private function prosesRows($rows)
+{
+    foreach ($rows as $index => $row) {
 
-            if(count($row) < 8)
-            {
-                continue;
-            }
-
-            $nama = trim(
-                preg_replace(
-
-                    '/^\xEF\xBB\xBF/',
-
-                    '',
-
-                    $row[1]
-
-                )
-            );
-            $pin = trim($row[2]);
-            $datetime = trim($row[3]);
-            $verifyCode = trim($row[6]);
-
-            if(
-                empty($pin) ||
-                empty($datetime)
-            ){
-                continue;
-            }
-
-          try{
-
-                $dt = new \DateTime($datetime);
-
-            }catch(\Exception $e){
-
-                Log::warning(
-                    'Format tanggal salah : '.$datetime
-                );
-
-                continue;
-            }
-
-                    $tanggal = $dt->format('Y-m-d');
-            $jam = $dt->format('H:i:s');
-
-                        $sudahAda = PresensiLog::where([
-                'pin'=>$pin,
-                'tanggal'=>$tanggal,
-                'jam'=>$jam
-            ])->exists();
-
-            if($sudahAda){
-                continue;
-            }
-
-            $log = PresensiLog::create([
-                'pin' => $pin,
-                'nama' => $nama,
-                'tanggal' => $tanggal,
-                'jam' => $jam,
-                'verify_code' => $verifyCode,
-                'status_sinkron' => 'pending'
-            ]);
-
-            $this->kirimKeVps($log);
+        // Lewati header
+        if ($index == 0) {
+            continue;
         }
+
+        // Pastikan jumlah kolom sesuai
+        if (!is_array($row) || count($row) < 8) {
+            Log::warning("Baris {$index} dilewati karena jumlah kolom kurang.");
+            continue;
+        }
+
+        // Ambil data
+        $nama       = trim((string)($row[1] ?? ''));
+        $pin        = trim((string)($row[2] ?? ''));
+        $datetime   = trim((string)($row[3] ?? ''));
+        $verifyCode = trim((string)($row[6] ?? ''));
+
+        // Validasi data wajib
+        if ($nama == '' || $pin == '' || $datetime == '') {
+
+            Log::warning(
+                "Baris {$index} kosong. PIN={$pin} DATETIME={$datetime}"
+            );
+
+            continue;
+        }
+
+        // Parsing tanggal
+        try {
+
+            $dt = new \DateTime($datetime);
+
+        } catch (\Exception $e) {
+
+            Log::warning(
+                "Format tanggal salah pada baris {$index} : {$datetime}"
+            );
+
+            continue;
+        }
+
+        $tanggal = $dt->format('Y-m-d');
+        $jam     = $dt->format('H:i:s');
+
+        // Cek data duplikat
+        $sudahAda = PresensiLog::where('pin', $pin)
+            ->where('tanggal', $tanggal)
+            ->where('jam', $jam)
+            ->exists();
+
+        if ($sudahAda) {
+
+            Log::info(
+                "Duplikat dilewati : {$pin} {$tanggal} {$jam}"
+            );
+
+            continue;
+        }
+
+        // Simpan log
+       $log = PresensiLog::create([
+    'pin' => $pin,
+    'nama' => $nama,
+    'tanggal' => $tanggal,
+    'jam' => $jam,
+    'verify_code' => $verifyCode,
+    'status_sinkron' => 'pending'
+]);
+
+// $this->kirimKeVps($log);
+
+        Log::info(
+            "PresensiLog berhasil dibuat. ID={$log->id} PIN={$pin}"
+        );
+
+      
     }
+}
 
    private function sinkronisasiPresensi()
 {
@@ -354,13 +376,11 @@ private function bacaFile($filePath, $extension = null)
                 'pin',
                 $log->pin
             )->first();
-
            if(!$karyawan){
 
-                            $log->update([
-
-                                'status_sinkron'=>'unmatched'
-
+                           $log->update([
+                                'status_sinkron'=>'unmatched',
+                                'catatan'=>'PIN tidak ditemukan'
                             ]);
 
                             Log::warning(
@@ -377,10 +397,10 @@ private function bacaFile($filePath, $extension = null)
                 $log
             );
 
-            $log->update([
-                'status_sinkron' => 'success'
-            ]);
-
+           $log->update([
+            'status_sinkron'=>'success',
+            'karyawan_id'=>$karyawan->id
+]);
         } catch (\Exception $e) {
 
             Log::error(
@@ -402,17 +422,17 @@ private function bacaFile($filePath, $extension = null)
                          ->with('success', 'Data Presensi Berhasil Dihapus!');
     }
 
-   private function kirimKeVps($log)
+  private function kirimKeVps($log)
 {
     try {
 
-        $response = Http::retry(3, 500)               // Nomor 15
-            ->timeout(10)                            // Nomor 14
+        $response = Http::retry(3, 500)
+            ->timeout(10)
             ->withHeaders([
                 'X-API-KEY' => env('FINGERPRINT_API_KEY')
             ])
             ->post(
-                env('SERVER_API') . '/api/presensi/upload',   // Nomor 8
+                env('SERVER_API') . '/api/presensi/upload',
                 [
                     'pin'         => $log->pin,
                     'nama'        => $log->nama,
@@ -422,30 +442,53 @@ private function bacaFile($filePath, $extension = null)
                 ]
             );
 
-        if (!$response->successful()) {
+        if ($response->successful()) {
 
-            Log::error(
-                'Upload VPS gagal : ' .
-                $response->status() .
-                ' | ' .
-                $response->body()
+            $log->update([
+                'status_server' => 'success'
+            ]);
+
+            Log::info(
+                'Upload VPS berhasil | PIN : ' .
+                $log->pin
             );
 
         } else {
 
-            Log::info(
-                'Upload VPS berhasil : PIN ' .
-                $log->pin
-            );
+            $log->update([
+                'status_server' => 'failed'
+            ]);
 
+            Log::error(
+                'Upload VPS gagal | HTTP ' .
+                $response->status() .
+                ' | ' .
+                $response->body()
+            );
         }
 
     } catch (\Exception $e) {
+
+        $log->update([
+            'status_server' => 'failed'
+        ]);
 
         Log::error(
             'Exception Upload VPS : ' .
             $e->getMessage()
         );
+    }
+}
+private function kirimDataPendingKeVps()
+{
+    $logs = PresensiLog::where('status_server', '!=', 'success')
+        ->orWhereNull('status_server')
+        ->get();
+
+    foreach ($logs as $log) {
+
+        $this->kirimKeVps($log);
+
     }
 }
 }
