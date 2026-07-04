@@ -12,11 +12,11 @@ use App\Http\Controllers\Api\PresensiApiController;
 |--------------------------------------------------------------------------
 */
 
-Route::post('/presensi/import', [
-    PresensiApiController::class,
-    'import'
-]);
-Route::post(
-    '/presensi/upload',
-    [PresensiApiController::class,'store']
-);
+Route::middleware('apikey')->group(function () {
+
+    Route::post('/presensi/upload', [
+        PresensiApiController::class,
+        'upload'
+    ]);
+
+});

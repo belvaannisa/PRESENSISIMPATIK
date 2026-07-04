@@ -33,6 +33,16 @@ return new class extends Migration
         'unmatched'
     ])->default('pending');
 
+    $table->enum(
+                'status_server',
+                [
+                    'pending',
+                    'success',
+                    'failed'
+                ]
+    )
+            ->default('pending');
+
     $table->text('catatan')->nullable();
 
     $table->timestamps();

@@ -243,7 +243,7 @@
         <br><br><br>
 
         <p>
-            <b>Admin</b>
+            <b>Kepala Personalia</b>
         </p>
 
     </div>

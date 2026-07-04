@@ -12,11 +12,12 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
-    ->withMiddleware(function (Middleware $middleware) {
+   ->withMiddleware(function (Middleware $middleware) {
 
-        $middleware->alias([
-            'role' => RoleMiddleware::class,
-        ]);
+    $middleware->alias([
+        'verify.apikey' => \App\Http\Middleware\VerifyApiKey::class,
+        'role' => RoleMiddleware::class,
+    ]);
 
     })
     ->withMiddleware(function ($middleware) {

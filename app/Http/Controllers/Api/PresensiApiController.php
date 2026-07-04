@@ -4,129 +4,121 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use App\Models\PresensiLog;
 use App\Models\Presensi;
 use App\Models\Karyawan;
-use Carbon\Carbon;
 
 class PresensiApiController extends Controller
 {
-
     public function upload(Request $request)
     {
+        try {
 
-        $request->validate([
+            $request->validate([
+                'pin'      => 'required',
+                'nama'     => 'required',
+                'tanggal'  => 'required|date',
+                'jam'      => 'required',
+            ]);
 
-            'pin'=>'required',
+            // Cek duplicate log
+            $cek = PresensiLog::where('pin', $request->pin)
+                ->where('tanggal', $request->tanggal)
+                ->where('jam', $request->jam)
+                ->exists();
 
-            'nama'=>'required',
+            if ($cek) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Duplicate'
+                ], 200);
+            }
 
-            'tanggal'=>'required',
+            // Simpan log
+            $log = PresensiLog::create([
+                'pin'             => $request->pin,
+                'nama'            => $request->nama,
+                'tanggal'         => $request->tanggal,
+                'jam'             => $request->jam,
+                'verify_code'     => 'API',
+                'status_sinkron'  => 'pending'
+            ]);
 
-            'jam'=>'required'
-
-        ]);
-
-        $cek = PresensiLog::where('pin',$request->pin)
-
-            ->where('tanggal',$request->tanggal)
-
-            ->where('jam',$request->jam)
-
-            ->exists();
-
-        if($cek){
+            // Sinkronkan ke tabel presensi
+            $this->prosesSinkronisasi($log);
 
             return response()->json([
+                'success' => true,
+                'message' => 'Data berhasil diterima',
+                'data'    => $log
+            ], 200);
 
-                'success'=>true,
+        } catch (\Exception $e) {
 
-                'message'=>'Duplicate'
-
-            ]);
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
 
         }
+    }
 
-        $log = PresensiLog::create([
-
-            'pin'=>$request->pin,
-
-            'nama'=>$request->nama,
-
-            'tanggal'=>$request->tanggal,
-
-            'jam'=>$request->jam,
-
-            'verify_code'=>'API',
-
-            'status_sinkron'=>'pending'
-
-        ]);
-
-        $karyawan = Karyawan::where('pin',$log->pin)
-
-            ->orWhere('nama',$log->nama)
-
+    /**
+     * Sinkronisasi satu log ke tabel presensi
+     */
+    private function prosesSinkronisasi(PresensiLog $log)
+    {
+        $karyawan = Karyawan::where('pin', $log->pin)
+            ->orWhere('nama', $log->nama)
             ->first();
 
-        if($karyawan){
+        if (!$karyawan) {
 
-            $presensi = Presensi::firstOrCreate([
-
-                'karyawan_id'=>$karyawan->id,
-
-                'tanggal'=>$log->tanggal
-
+            $log->update([
+                'status_sinkron' => 'unmatched'
             ]);
 
-            if(!$presensi->jam_masuk || $log->jam < $presensi->jam_masuk){
+            return;
+        }
 
-                $presensi->jam_masuk=$log->jam;
+        DB::transaction(function () use ($karyawan, $log) {
 
+            $presensi = Presensi::firstOrCreate(
+                [
+                    'karyawan_id' => $karyawan->id,
+                    'tanggal'     => $log->tanggal,
+                ],
+                [
+                    'keterangan'  => 'Hadir',
+                    'status'      => 'Hadir'
+                ]
+            );
+
+            // Jam masuk paling awal
+            if (!$presensi->jam_masuk || $log->jam < $presensi->jam_masuk) {
+                $presensi->jam_masuk = $log->jam;
             }
 
-            if(!$presensi->jam_keluar || $log->jam > $presensi->jam_keluar){
-
-                $presensi->jam_keluar=$log->jam;
-
+            // Jam keluar paling akhir
+            if (!$presensi->jam_keluar || $log->jam > $presensi->jam_keluar) {
+                $presensi->jam_keluar = $log->jam;
             }
 
-            $presensi->status=
+            // Status
+            $presensi->status =
+                strtotime($presensi->jam_masuk) > strtotime('08:15:00')
+                ? 'Terlambat'
+                : 'Tepat Waktu';
 
-                strtotime($presensi->jam_masuk)>
-
-                strtotime('08:15:00')
-
-                ?
-
-                'Terlambat'
-
-                :
-
-                'Tepat Waktu';
+            $presensi->keterangan = 'Hadir';
 
             $presensi->save();
 
             $log->update([
-
-                'status_sinkron'=>'matched',
-
-                'karyawan_id'=>$karyawan->id
-
+                'karyawan_id'    => $karyawan->id,
+                'status_sinkron' => 'matched'
             ]);
-
-        }
-
-        return response()->json([
-
-            'success'=>true,
-
-            'message'=>'Berhasil',
-
-            'data'=>$log
-
-        ]);
-
+        });
     }
-
 }

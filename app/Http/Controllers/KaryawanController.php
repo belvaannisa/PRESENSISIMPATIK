@@ -56,9 +56,15 @@ class KaryawanController extends Controller
         'tipe_jam_keluar' => 'required',
         'jam_keluar' => 'nullable|required_if:tipe_jam_keluar,terbatas'
     ]);
+    
+    $jam_keluar = $request->jam_keluar;
 
+    if ($request->tipe_jam_keluar == 'Tidak Terbatas' || empty($jam_keluar)) {
+        $jam_keluar = '00:00:00'; 
+    }
+    
     Karyawan::create([
-            'pin' => $request->pin,
+        'pin' => $request->pin,
         'nama' => $request->nama,
         'jabatan' => $request->jabatan,
         'no_hp' => $request->no_hp,
@@ -67,7 +73,7 @@ class KaryawanController extends Controller
         'tanggal_masuk' => $request->tanggal_masuk,
         'status_aktif' => $request->status_aktif,
         'tipe_jam_keluar' => $request->tipe_jam_keluar,
-        'jam_keluar' => $request->jam_keluar
+        'jam_keluar' => $jam_keluar
     ]);
 
     $lastPage = ceil(Karyawan::count() / 10);

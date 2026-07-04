@@ -33,7 +33,9 @@
           ->default('08:00:00');
 
     $table->time('jam_keluar')
+          ->nullable()
           ->default('17:00:00');
+          
 
     $table->time('batas_terlambatan')
           ->default('08:15:00');

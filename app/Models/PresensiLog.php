@@ -16,6 +16,7 @@ class PresensiLog extends Model
     'verify_code',
     'karyawan_id',
     'status_sinkron',
+    'status_server',
     'catatan'
 ];
 
