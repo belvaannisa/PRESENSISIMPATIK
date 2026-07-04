@@ -75,27 +75,21 @@
     {{-- HEADER --}}
     <div class="header">
 
-        {{-- LOGO --}}
-        <img src="{{ public_path('images/logo.jpeg') }}"
+         <img src="{{ public_path('images/logo.jpeg') }}"
              class="logo">
 
-        {{-- NAMA PT --}}
         <h2 style="margin:10px 0 0 0;">
             PT. Simpatik Borneo Utama
         </h2>
 
-        {{-- JUDUL --}}
         <h3 style="margin:5px 0 0 0;">
-
-            @if($mode == 'harian')
-                Laporan Presensi Harian
-            @elseif($mode == 'mingguan')
-                Laporan Presensi Mingguan
-            @else
-                Laporan Presensi Bulanan
-            @endif
-
+            Laporan Keterlambatan Karyawan
         </h3>
+
+        <p>
+            Bulan :
+            {{ \Carbon\Carbon::parse($bulan)->translatedFormat('F Y') }}
+        </p>
 
         {{-- TANGGAL --}}
         <p style="margin-top:5px;">

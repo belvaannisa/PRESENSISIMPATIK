@@ -443,74 +443,54 @@ class PresensiController extends Controller
             'Tepat Waktu';
     }
 
-    private function prosesLogKePresensi($karyawan,$log)
-    {
-        DB::transaction(function () use ($karyawan,$log){
+    private function prosesLogKePresensi($karyawan, $log)
+{
+    DB::transaction(function () use ($karyawan, $log) {
 
-            $presensi = Presensi::firstOrCreate(
+        $presensi = Presensi::firstOrCreate(
+            [
+                'karyawan_id' => $karyawan->id,
+                'tanggal' => $log->tanggal
+            ],
+            [
+                'keterangan' => 'Hadir',
+                'status' => 'Hadir'
+            ]
+        );
 
-                [
+        $jam = strtotime($log->jam);
 
-                    'karyawan_id'=>$karyawan->id,
+        if ($jam < strtotime('12:00:00')) {
 
-                    'tanggal'=>$log->tanggal
-
-                ],
-
-                [
-
-                    'keterangan'=>'Hadir',
-
-                    'status'=>'Hadir'
-
-                ]
-
-            );
-
-            if(
-
-                !$presensi->jam_masuk ||
-
-                $log->jam < $presensi->jam_masuk
-
-            ){
-
-                $presensi->jam_masuk =
-
-                    $log->jam;
-
+            // Scan masuk
+            if (
+                is_null($presensi->jam_masuk) ||
+                $jam < strtotime($presensi->jam_masuk)
+            ) {
+                $presensi->jam_masuk = $log->jam;
             }
 
-            if(
+        } else {
 
-                !$presensi->jam_keluar ||
-
-                $log->jam > $presensi->jam_keluar
-
-            ){
-
-                $presensi->jam_keluar =
-
-                    $log->jam;
-
+            // Scan pulang
+            if (
+                is_null($presensi->jam_keluar) ||
+                $jam > strtotime($presensi->jam_keluar)
+            ) {
+                $presensi->jam_keluar = $log->jam;
             }
 
-            $presensi->status =
+        }
 
-                $this->tentukanStatus(
+        $presensi->status = $this->tentukanStatus(
+            $presensi->jam_masuk
+        );
 
-                    $presensi->jam_masuk
+        $presensi->keterangan = 'Hadir';
 
-                );
-
-            $presensi->keterangan =
-
-                'Hadir';
-
-            $presensi->save();
-
-        });
-    }
+        $presensi->save();
+    });
+}
 
     private function sinkronisasiPresensi()
     {
