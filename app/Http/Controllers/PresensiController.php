@@ -379,6 +379,10 @@ class PresensiController extends Controller
 
             }
 
+            $karyawan = Karyawan::where('pin', $pin)->first();
+
+            $status = $karyawan ? 'matched' : 'unmatched';
+
             $log = PresensiLog::create([
 
                 'pin' => $pin,
@@ -391,9 +395,15 @@ class PresensiController extends Controller
 
                 'verify_code' => $verify,
 
-                'status_sinkron' => 'pending',
+                'karyawan_id' => $karyawan?->id,
 
-                'catatan' => null
+                'status_sinkron' => $status,
+
+                'status_server' => 'pending',
+
+                'catatan' => $karyawan
+                    ? 'PIN ditemukan'
+                    : 'PIN tidak ditemukan'
 
             ]);
 
@@ -504,100 +514,49 @@ class PresensiController extends Controller
 
     private function sinkronisasiPresensi()
     {
-        $logs =
+        $logs = PresensiLog::where(
+                    'status_sinkron',
+                    'matched'
+                )
+                ->orderBy('id')
+                ->get();
 
-            PresensiLog::where(
+        foreach ($logs as $log) {
 
-                'status_sinkron',
+            try {
 
-                'pending'
+                $karyawan = Karyawan::find($log->karyawan_id);
 
-            )
-
-            ->orderBy('id')
-
-            ->get();
-
-        foreach($logs as $log){
-
-            try{
-
-                $karyawan =
-
-                    $this->cariKaryawan($log);
-
-                if(!$karyawan){
-
-                    $log->update([
-
-                        'status_sinkron'=>'unmatched',
-
-                        'catatan'=>'PIN tidak ditemukan'
-
-                    ]);
+                if (!$karyawan) {
 
                     Log::warning(
-
-                        'PIN '
-
-                        .$log->pin.
-
-                        ' tidak ditemukan.'
-
+                        'Karyawan ID '.$log->karyawan_id.' tidak ditemukan'
                     );
 
                     continue;
-
                 }
 
                 $this->prosesLogKePresensi(
-
                     $karyawan,
-
                     $log
-
                 );
 
                 $log->update([
-
-                    'status_sinkron'=>'matched',
-
-                    'status_server'=>'pending',
-
-                    'karyawan_id'=>$karyawan->id,
-
-                    'catatan'=>'Sinkron berhasil'
-
+                    'catatan' => 'Presensi berhasil dibuat'
                 ]);
 
                 Log::info(
-
-                    'Sinkron berhasil PIN '
-
-                    .$log->pin
-
+                    'Sinkron berhasil PIN '.$log->pin
                 );
 
-            }
-
-            catch(\Throwable $e){
+            } catch (\Throwable $e) {
 
                 Log::error(
-
-                    'Sinkron gagal PIN '
-
-                    .$log->pin.
-
-                    ' : '.
-
-                    $e->getMessage()
-
+                    'Sinkron gagal PIN '.$log->pin.' : '.$e->getMessage()
                 );
 
             }
-
         }
-
     }
 
     private function kirimKeVps($log)

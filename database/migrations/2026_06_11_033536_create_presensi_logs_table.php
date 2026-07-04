@@ -12,8 +12,12 @@ return new class extends Migration
     public function up(): void
     {
       Schema::create('presensi_logs', function (Blueprint $table) {
+      $table->id();
 
-    $table->id();
+      $table->foreignId('karyawan_id')
+      ->nullable()
+      ->constrained('karyawans')
+      ->nullOnDelete();
 
     $table->string('pin')->nullable();
 
@@ -24,8 +28,6 @@ return new class extends Migration
     $table->time('jam');
 
     $table->string('verify_code')->nullable();
-
-    $table->unsignedBigInteger('karyawan_id')->nullable();
 
     $table->enum('status_sinkron', [
         'pending',
