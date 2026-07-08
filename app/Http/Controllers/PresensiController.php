@@ -128,13 +128,11 @@ class PresensiController extends Controller
 
     }
 }
-   public function upload(Request $request)
+  public function upload(Request $request)
 {
     $request->validate([
         'file' => 'required|mimes:csv,txt,xls,xlsx'
     ]);
-
-    DB::beginTransaction();
 
     try {
 
@@ -147,20 +145,19 @@ class PresensiController extends Controller
 
         $this->prosesRows($rows);
 
-$this->sinkronisasiPresensi();
+        $this->sinkronisasiPresensi();
 
-//$this->kirimDataPendingKeVps();
+        // nanti dipindah ke queue
+        //$this->kirimDataPendingKeVps();
 
-return back()->with(
-    'success',
-    'Import berhasil.'
-);
+        return back()->with(
+            'success',
+            'Import berhasil.'
+        );
 
     } catch (\Throwable $e) {
 
-        DB::rollBack();
-
-        Log::error($e->getMessage());
+        Log::error($e);
 
         return back()->with(
             'error',
@@ -246,27 +243,83 @@ return back()->with(
         );
     }
 
-    private function prosesRows($rows)
+  private function prosesRows($rows)
 {
-    // Ambil semua PIN karyawan sekali saja
+    if (count($rows) <= 1) {
+        return;
+    }
+
+    $tanggalImport = [];
+
+    foreach ($rows as $index => $row) {
+
+        if ($index == 0) {
+            continue;
+        }
+
+        if (!$this->validasiBaris($row, $index)) {
+            continue;
+        }
+
+        try {
+
+            $dt = new \DateTime(trim($row[3]));
+
+            $tanggalImport[] = $dt->format('Y-m-d');
+
+        } catch (\Throwable $e) {
+
+            continue;
+
+        }
+
+    }
+
+    $tanggalImport = array_unique($tanggalImport);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Ambil seluruh PIN karyawan sekali
+    |--------------------------------------------------------------------------
+    */
+
     $karyawanMap = Karyawan::select('id', 'pin')
         ->get()
         ->keyBy('pin');
 
-    // Ambil seluruh kombinasi log yang sudah ada
-    $existingLogs = PresensiLog::select(
+    /*
+    |--------------------------------------------------------------------------
+    | Ambil duplicate HANYA sesuai tanggal import
+    |--------------------------------------------------------------------------
+    */
+
+    $existingLogs = PresensiLog::whereIn(
+            'tanggal',
+            $tanggalImport
+        )
+        ->select(
             'pin',
             'tanggal',
             'jam'
         )
         ->get()
         ->mapWithKeys(function ($item) {
+
             return [
-                $item->pin . '_' . $item->tanggal . '_' . $item->jam => true
+
+                $item->pin .
+                '_' .
+                $item->tanggal .
+                '_' .
+                $item->jam
+
+                => true
+
             ];
+
         });
 
-    $insertData = [];
+    $insert = [];
 
     foreach ($rows as $index => $row) {
 
@@ -282,7 +335,7 @@ return back()->with(
 
             $datetime = new \DateTime(trim($row[3]));
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
 
             continue;
 
@@ -298,9 +351,8 @@ return back()->with(
 
         $verify = trim($row[6]);
 
-        $key = $pin . '_' . $tanggal . '_' . $jam;
+        $key = "{$pin}_{$tanggal}_{$jam}";
 
-        // Skip jika sudah ada
         if (isset($existingLogs[$key])) {
             continue;
         }
@@ -309,7 +361,7 @@ return back()->with(
 
         $karyawan = $karyawanMap->get($pin);
 
-        $insertData[] = [
+        $insert[] = [
 
             'pin' => $pin,
 
@@ -323,7 +375,9 @@ return back()->with(
 
             'karyawan_id' => $karyawan?->id,
 
-            'status_sinkron' => $karyawan ? 'matched' : 'unmatched',
+            'status_sinkron' => $karyawan
+                ? 'matched'
+                : 'unmatched',
 
             'status_server' => 'pending',
 
@@ -333,25 +387,29 @@ return back()->with(
 
             'created_at' => now(),
 
-            'updated_at' => now(),
+            'updated_at' => now()
 
         ];
 
-        // Insert per 1000 data
-        if (count($insertData) >= 1000) {
+        /*
+        |--------------------------------------------------------------------------
+        | Batch Insert
+        |--------------------------------------------------------------------------
+        */
 
-            DB::table('presensi_logs')->insert($insertData);
+        if (count($insert) >= 1000) {
 
-            $insertData = [];
+            DB::table('presensi_logs')->insert($insert);
+
+            $insert = [];
 
         }
 
     }
 
-    // Sisa data
-    if (!empty($insertData)) {
+    if (!empty($insert)) {
 
-        DB::table('presensi_logs')->insert($insertData);
+        DB::table('presensi_logs')->insert($insert);
 
     }
 }
