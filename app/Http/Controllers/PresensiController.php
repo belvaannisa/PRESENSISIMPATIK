@@ -147,17 +147,14 @@ class PresensiController extends Controller
 
         $this->prosesRows($rows);
 
-        $this->sinkronisasiPresensi();
+$this->sinkronisasiPresensi();
 
-        DB::commit();
+//$this->kirimDataPendingKeVps();
 
-        // proses VPS dipanggil terakhir
-        $this->kirimDataPendingKeVps();
-
-        return back()->with(
-            'success',
-            'Import berhasil.'
-        );
+return back()->with(
+    'success',
+    'Import berhasil.'
+);
 
     } catch (\Throwable $e) {
 
