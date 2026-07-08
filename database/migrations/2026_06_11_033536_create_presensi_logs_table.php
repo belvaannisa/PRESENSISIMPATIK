@@ -28,6 +28,8 @@ return new class extends Migration
     $table->time('jam');
 
     $table->string('verify_code')->nullable();
+   $table->string('record_hash', 64)
+          ->unique();
 
     $table->enum('status_sinkron', [
         'pending',

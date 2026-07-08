@@ -138,11 +138,12 @@ class PresensiController extends Controller
 
         $file = $request->file('file');
 
+        
+
         $rows = $this->bacaFile(
             $file->getRealPath(),
             $file->getClientOriginalExtension()
         );
-
         $this->prosesRows($rows);
 
         $this->sinkronisasiPresensi();
@@ -245,84 +246,22 @@ class PresensiController extends Controller
 
   private function prosesRows($rows)
 {
-    if (count($rows) <= 1) {
+    if (empty($rows) || count($rows) <= 1) {
         return;
     }
 
-    $tanggalImport = [];
-
-    foreach ($rows as $index => $row) {
-
-        if ($index == 0) {
-            continue;
-        }
-
-        if (!$this->validasiBaris($row, $index)) {
-            continue;
-        }
-
-        try {
-
-            $dt = new \DateTime(trim($row[3]));
-
-            $tanggalImport[] = $dt->format('Y-m-d');
-
-        } catch (\Throwable $e) {
-
-            continue;
-
-        }
-
-    }
-
-    $tanggalImport = array_unique($tanggalImport);
-
-    /*
-    |--------------------------------------------------------------------------
-    | Ambil seluruh PIN karyawan sekali
-    |--------------------------------------------------------------------------
-    */
-
+    // Ambil seluruh data karyawan sekali saja
     $karyawanMap = Karyawan::select('id', 'pin')
         ->get()
-        ->keyBy('pin');
-
-    /*
-    |--------------------------------------------------------------------------
-    | Ambil duplicate HANYA sesuai tanggal import
-    |--------------------------------------------------------------------------
-    */
-
-    $existingLogs = PresensiLog::whereIn(
-            'tanggal',
-            $tanggalImport
-        )
-        ->select(
-            'pin',
-            'tanggal',
-            'jam'
-        )
-        ->get()
-        ->mapWithKeys(function ($item) {
-
-            return [
-
-                $item->pin .
-                '_' .
-                $item->tanggal .
-                '_' .
-                $item->jam
-
-                => true
-
-            ];
-
+        ->keyBy(function ($item) {
+            return trim($item->pin);
         });
 
-    $insert = [];
+    $insertData = [];
 
     foreach ($rows as $index => $row) {
 
+        // Skip Header
         if ($index == 0) {
             continue;
         }
@@ -342,74 +281,71 @@ class PresensiController extends Controller
         }
 
         $pin = trim($row[2]);
-
         $nama = trim($row[1]);
 
         $tanggal = $datetime->format('Y-m-d');
-
         $jam = $datetime->format('H:i:s');
 
         $verify = trim($row[6]);
 
-        $key = "{$pin}_{$tanggal}_{$jam}";
-
-        if (isset($existingLogs[$key])) {
-            continue;
-        }
-
-        $existingLogs[$key] = true;
-
+        // Cari karyawan dari RAM (bukan query DB)
         $karyawan = $karyawanMap->get($pin);
 
-        $insert[] = [
+        // Generate Record Hash
+        $recordHash = $this->generateRecordHash(
+            $pin,
+            $tanggal,
+            $jam
+        );
 
-            'pin' => $pin,
+        $insertData[] = [
 
-            'nama' => $nama,
+            'record_hash'     => $recordHash,
 
-            'tanggal' => $tanggal,
+            'pin'             => $pin,
 
-            'jam' => $jam,
+            'nama'            => $nama,
 
-            'verify_code' => $verify,
+            'tanggal'         => $tanggal,
 
-            'karyawan_id' => $karyawan?->id,
+            'jam'             => $jam,
 
-            'status_sinkron' => $karyawan
+            'verify_code'     => $verify,
+
+            'karyawan_id'     => $karyawan?->id,
+
+            'status_sinkron'  => $karyawan
                 ? 'matched'
                 : 'unmatched',
 
-            'status_server' => 'pending',
+            'status_server'   => 'pending',
 
-            'catatan' => $karyawan
+            'catatan'         => $karyawan
                 ? 'PIN ditemukan'
                 : 'PIN tidak ditemukan',
 
-            'created_at' => now(),
+            'created_at'      => now(),
 
-            'updated_at' => now()
+            'updated_at'      => now(),
 
         ];
 
-        /*
-        |--------------------------------------------------------------------------
-        | Batch Insert
-        |--------------------------------------------------------------------------
-        */
+        // Batch Insert setiap 1000 data
+        if (count($insertData) >= 1000) {
 
-        if (count($insert) >= 1000) {
+            DB::table('presensi_logs')
+                ->insertOrIgnore($insertData);
 
-            DB::table('presensi_logs')->insert($insert);
-
-            $insert = [];
-
+            $insertData = [];
         }
-
     }
 
-    if (!empty($insert)) {
+    // Insert sisa data
+    
+    if (!empty($insertData)) {
 
-        DB::table('presensi_logs')->insert($insert);
+        DB::table('presensi_logs')
+            ->insertOrIgnore($insertData);
 
     }
 }
@@ -682,6 +618,13 @@ class PresensiController extends Controller
         });
 }
 
+private function generateRecordHash($pin, $tanggal, $jam)
+{
+    return hash(
+        'sha256',
+        trim($pin).'|'.trim($tanggal).'|'.trim($jam)
+    );
+}
         // ❌ DELETE
         public function destroy(Presensi $presensi)
         {
