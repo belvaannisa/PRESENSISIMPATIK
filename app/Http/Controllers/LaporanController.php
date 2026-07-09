@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+
 use App\Models\Presensi;
 use App\Models\Karyawan;
 use Illuminate\Http\Request;
@@ -75,57 +76,57 @@ class LaporanController extends Controller
         */
         if ($mode == 'bulanan') {
 
-            $karyawans = Karyawan::all();
+            $karyawans = Karyawan::orderBy('nama')->get();
 
             $rekap = [];
 
             foreach ($karyawans as $k) {
 
                 $presensi = Presensi::where('karyawan_id', $k->id)
-                    ->where('tanggal', 'LIKE', Carbon::parse($bulan)->format('Y-m') . '%')
+                    ->whereYear('tanggal', Carbon::parse($bulan)->year)
+                    ->whereMonth('tanggal', Carbon::parse($bulan)->month)
                     ->get();
 
                 $hadir = $presensi->count();
 
-                $telat = $presensi->where('status','Terlambat')->count();
+                $telat = $presensi->where('status', 'Terlambat')->count();
 
                 $hariKerja = 28;
 
-                $ketidakhadiran = max(0,$hariKerja-$hadir);
+                $ketidakhadiran = max(0, $hariKerja - $hadir);
 
-                $nilaiDisiplin = ($hadir - $telat);
+                $nilaiDisiplin = max(0, $hadir - $telat);
 
-                $persen = round(($nilaiDisiplin/$hariKerja)*100,1);
+                $persen = round(($nilaiDisiplin / $hariKerja) * 100, 1);
 
+                // Keterangan
                 if ($hadir == 0) {
-                    $keterangan = null;   // atau '-'
-                } elseif ($persen >= 75) {
+                    $keterangan = '-';
+                    $persen = '-';
+                    $insentif = '-';
+                } elseif ($hadir >= 20 && $telat <= 3) {
                     $keterangan = 'Disiplin';
+                    $insentif = $nilaiDisiplin * 15000;
                 } else {
                     $keterangan = 'Kurang Disiplin';
-                }
-
-                $insentif = ($hadir - $telat) * 15000;
-
-                if($insentif < 0){
-                    $insentif = 0;
+                    $insentif = $nilaiDisiplin * 15000;
                 }
 
                 $rekap[] = [
 
-                    'nama'=>$k->nama,
+                    'nama' => $k->nama,
 
-                    'hadir'=>$hadir,
+                    'hadir' => $hadir,
 
-                    'telat'=>$telat,
+                    'telat' => $telat,
 
-                    'ketidakhadiran'=>$ketidakhadiran,
+                    'ketidakhadiran' => $ketidakhadiran,
 
-                    'keterangan'=>$keterangan,
+                    'keterangan' => $keterangan,
 
-                    'persen'=>$persen,
+                    'persen' => $persen,
 
-                    'insentif'=>$insentif
+                    'insentif' => $insentif
 
                 ];
             }
@@ -199,36 +200,43 @@ class LaporanController extends Controller
     */
     elseif ($mode == 'bulanan') {
 
-    $karyawans = Karyawan::all();
+    $karyawans = Karyawan::orderBy('nama')->get();
 
     foreach ($karyawans as $k) {
 
         $presensi = Presensi::where('karyawan_id', $k->id)
-            ->where('tanggal', 'LIKE', Carbon::parse($bulan)->format('Y-m') . '%')
+            ->whereYear('tanggal', Carbon::parse($bulan)->year)
+            ->whereMonth('tanggal', Carbon::parse($bulan)->month)
             ->get();
 
         $hadir = $presensi->count();
 
-        $telat = $presensi
-            ->where('status', 'Terlambat')
-            ->count();
+        $telat = $presensi->where('status', 'Terlambat')->count();
 
         $hariKerja = 28;
 
         $ketidakhadiran = max(0, $hariKerja - $hadir);
 
-        $nilaiDisiplin = $hadir - $telat;
+        $nilaiDisiplin = max(0, $hadir - $telat);
 
         $persen = round(($nilaiDisiplin / $hariKerja) * 100, 1);
 
-        $keterangan = $persen >= 75
-            ? 'Disiplin'
-            : 'Kurang Disiplin';
+        if ($hadir == 0) {
 
-        $insentif = $nilaiDisiplin * 15000;
-
-        if ($insentif < 0) {
+            $keterangan = '-';
+            $persen = 0;
             $insentif = 0;
+
+        } elseif ($hadir >= 20 && $telat <= 3) {
+
+            $keterangan = 'Disiplin';
+            $insentif = $nilaiDisiplin * 15000;
+
+        } else {
+
+            $keterangan = 'Kurang Disiplin';
+            $insentif = $nilaiDisiplin * 15000;
+
         }
 
         $rekap[] = [
@@ -245,7 +253,7 @@ class LaporanController extends Controller
 
             'persen' => $persen,
 
-            'insentif' => $insentif,
+            'insentif' => $insentif
 
         ];
     }
