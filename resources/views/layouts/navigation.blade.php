@@ -56,59 +56,13 @@
                 </li>
                 @endif
 
-                {{-- LOG PRESENSI}}
-                <li class="nav-item">
-                    <a href="{{ route('presensi-log.index') }}"
-                    class="nav-link">
-                        Presensi Log
-                    </a>
-                </li>
 
                 {{-- LAPORAN --}}
-                <li class="nav-item dropdown">
-
-                    <a class="nav-link dropdown-toggle {{ request()->is('laporan/*') ? 'active' : '' }}"
-                       href="#"
-                       role="button"
-                       data-bs-toggle="dropdown">
-
-                        @if(request()->routeIs('laporan.presensi'))
-                            Laporan Presensi
-                        @elseif(request()->routeIs('laporan.keterlambatan'))
-                            Laporan Keterlambatan
-                        @elseif(request()->routeIs('laporan.kedisiplinan'))
-                            Laporan Kedisiplinan
-                        @else
-                            Laporan
-                        @endif
-
+                <li class="nav-item">
+                    <a class="nav-link {{ request()->is('laporan/*') ? 'active' : '' }}"
+                        href="{{ route('laporan.presensi') }}">
+                        Laporan Presensi
                     </a>
-
-                    <ul class="dropdown-menu">
-
-                        <li>
-                            <a class="dropdown-item"
-                               href="{{ route('laporan.presensi') }}">
-                                Presensi
-                            </a>
-                        </li>
-
-                        <li>
-                            <a class="dropdown-item"
-                               href="{{ route('laporan.keterlambatan') }}">
-                                Keterlambatan
-                            </a>
-                        </li>
-
-                        <li>
-                            <a class="dropdown-item"
-                               href="{{ route('laporan.kedisiplinan') }}">
-                                Kedisiplinan
-                            </a>
-                        </li>
-
-                    </ul>
-
                 </li>
 
             </ul>
@@ -116,8 +70,6 @@
             {{-- MENU KANAN --}}
             <ul class="navbar-nav align-items-center">
                
-
-
                 {{-- LOGOUT --}}
                 <li class="nav-item me-3">
                     <form action="{{ route('logout') }}" method="POST">
@@ -127,20 +79,6 @@
                             Logout
                         </button>
                     </form>
-                </li>
-
-                {{-- USER --}}
-                <li class="nav-item d-flex align-items-center">
-
-                    <span class="nav-link text-white me-2">
-                        {{ auth()->user()->name }}
-                    </span>
-
-                    <img src="https://ui-avatars.com/api/?name={{ auth()->user()->name }}&background=ffffff&color=FA713F"
-                         class="rounded-circle"
-                         width="35"
-                         height="35">
-
                 </li>
 
             </ul>
@@ -199,42 +137,10 @@
             @endif
 
             <li class="nav-item">
-                <a href=""
-                class="nav-link">
-                    📅 Presensi Log
-                </a>
-            </li>
-            
-            <li class="nav-item mt-3">
-                <strong>📊 Laporan</strong>
-            </li>
-
-            <li class="nav-item">
                 <a class="nav-link"
                    href="{{ route('laporan.presensi') }}">
-                    Presensi
+                    📅Laporan Presensi
                 </a>
-            </li>
-
-            <li class="nav-item">
-                <a class="nav-link"
-                   href="{{ route('laporan.keterlambatan') }}">
-                    Keterlambatan
-                </a>
-            </li>
-
-            <li class="nav-item">
-                <a class="nav-link"
-                   href="{{ route('laporan.kedisiplinan') }}">
-                    Kedisiplinan
-                </a>
-            </li>
-
-
-            <li class="nav-item mt-2">
-                <span class="nav-link">
-                    👤 {{ auth()->user()->name }}
-                </span>
             </li>
 
             <li class="nav-item">

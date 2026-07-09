@@ -7,25 +7,25 @@
     <style>
 
         body{
-            font-family: sans-serif;
+            font-family: DejaVu Sans, sans-serif;
             font-size: 12px;
-            padding: 20px;
+            padding:20px;
         }
 
         table{
-            width: 100%;
+            width:100%;
             border-collapse: collapse;
         }
 
-        th, td{
-            border: 1px solid #000;
-            padding: 6px;
+        th,td{
+            border:1px solid #000;
+            padding:6px;
         }
 
         th{
-            background: #FA713F;
-            color: white;
-            text-align: center;
+            background:#FA713F;
+            color:white;
+            text-align:center;
         }
 
         td{
@@ -33,214 +33,352 @@
         }
 
         .text-center{
-            text-align: center;
+            text-align:center;
         }
 
         .text-right{
-            text-align: right;
+            text-align:right;
         }
 
         .terlambat{
-            color: red;
-            font-weight: bold;
+            color:red;
+            font-weight:bold;
         }
 
         .tepat{
-            color: green;
-            font-weight: bold;
+            color:green;
+            font-weight:bold;
         }
 
         .header{
-            text-align: center;
-            margin-bottom: 20px;
+            text-align:center;
+            margin-bottom:20px;
         }
 
         .logo{
-            width: 70px;
-            border: 1px solid rgba(0,0,0,0.3);
-            border-radius: 8px;
+            width:70px;
+            border-radius:8px;
         }
 
         .footer{
-            width: 100%;
-            margin-top: 40px;
-            text-align: right;
+            width:100%;
+            margin-top:50px;
+            text-align:right;
         }
 
     </style>
+
 </head>
 
 <body>
 
-    {{-- HEADER --}}
-    <div class="header">
+<div class="header">
 
-         <img src="{{ public_path('images/logo.jpeg') }}"
-             class="logo">
+    <img src="{{ public_path('images/logo.jpeg') }}"
+         class="logo">
 
-        <h2 style="margin:10px 0 0 0;">
-            PT. Simpatik Borneo Utama
-        </h2>
+    <h2 style="margin:10px 0 0 0;">
+        PT. Simpatik Borneo Utama
+    </h2>
 
-        <h3 style="margin:5px 0 0 0;">
-            Laporan Keterlambatan Karyawan
-        </h3>
+    <h3 style="margin:5px 0 0 0;">
+        LAPORAN PRESENSI KARYAWAN
+    </h3>
+
+    @if($mode=='harian')
 
         <p>
-            Bulan :
-            {{ \Carbon\Carbon::parse($bulan)->translatedFormat('F Y') }}
+            Tanggal :
+            {{ \Carbon\Carbon::parse($tanggal)->translatedFormat('d F Y') }}
         </p>
 
-        {{-- TANGGAL --}}
-        <p style="margin-top:5px;">
+    @elseif($mode=='mingguan')
 
-            @if($mode == 'harian')
-                Tanggal : {{ $tanggal }}
-            @elseif($mode == 'mingguan')
-                Minggu : {{ \Carbon\Carbon::parse($tanggal)->startOfWeek()->format('d-m-Y') }}
-                s/d
-                {{ \Carbon\Carbon::parse($tanggal)->endOfWeek()->format('d-m-Y') }}
+        <p>
+
+            Periode :
+
+            {{ \Carbon\Carbon::parse($tanggal)->startOfWeek()->translatedFormat('d F Y') }}
+
+            s/d
+
+            {{ \Carbon\Carbon::parse($tanggal)->endOfWeek()->translatedFormat('d F Y') }}
+
+        </p>
+
+    @else
+
+        <p>
+
+            Bulan :
+
+            {{ \Carbon\Carbon::parse($bulan)->translatedFormat('F Y') }}
+
+        </p>
+
+    @endif
+
+</div>
+
+{{-- ========================= --}}
+{{-- HARIAN & MINGGUAN --}}
+{{-- ========================= --}}
+
+@if($mode!='bulanan')
+
+<table>
+
+    <thead>
+
+    <tr>
+
+        <th>Nama</th>
+        <th>Tanggal</th>
+        <th>Jam Masuk</th>
+        <th>Jam Keluar</th>
+        <th>Status</th>
+
+    </tr>
+
+    </thead>
+
+    <tbody>
+
+    @forelse($data as $d)
+
+    <tr>
+
+        <td>
+
+            {{ $d->karyawan->nama ?? '-' }}
+
+        </td>
+
+        <td class="text-center">
+
+            {{ $d->tanggal }}
+
+        </td>
+
+        <td class="text-center">
+
+            {{ $d->jam_masuk }}
+
+        </td>
+
+        <td class="text-center">
+
+            {{ $d->jam_keluar ?? '-' }}
+
+        </td>
+
+        <td class="text-center">
+
+            @if($d->status=="Terlambat")
+
+                <span class="terlambat">
+
+                    Terlambat
+
+                </span>
+
             @else
-                Bulan : {{ $bulan }}
+
+                <span class="tepat">
+
+                    Tepat Waktu
+
+                </span>
+
             @endif
 
-        </p>
+        </td>
 
-    </div>
+    </tr>
 
+    @empty
 
-    {{-- ========================= --}}
-    {{-- HARIAN & MINGGUAN --}}
-    {{-- ========================= --}}
-    @if($mode != 'bulanan')
+    <tr>
 
-    <table>
+        <td colspan="5" class="text-center">
 
-        <tr>
-            <th>Nama</th>
-            <th>Tanggal</th>
-            <th>Jam Masuk</th>
-            <th>Status</th>
-        </tr>
+            Tidak ada data.
 
-        @foreach($data as $d)
+        </td>
 
-        <tr>
+    </tr>
 
-            <td>
-                {{ $d->karyawan->nama }}
-            </td>
+    @endforelse
 
-            <td class="text-center">
-                {{ $d->tanggal }}
-            </td>
+    </tbody>
 
-            <td class="text-center">
-                {{ $d->jam_masuk }}
-            </td>
+</table>
 
-            <td class="text-center">
+@endif
 
-                @if($d->status == 'Terlambat')
+{{-- ========================= --}}
+{{-- BULANAN --}}
+{{-- ========================= --}}
 
-                    <span class="terlambat">
-                        Terlambat
-                    </span>
+@if($mode=='bulanan')
 
-                @else
+<table style="margin-bottom:15px;">
 
-                    <span class="tepat">
-                        Tepat Waktu
-                    </span>
+<tr>
 
-                @endif
+<td width="25%">
 
-            </td>
+<b>Jumlah Karyawan</b>
 
-        </tr>
+</td>
 
-        @endforeach
+<td>
 
-    </table>
+{{ count($rekap) }} Orang
 
-    @endif
+</td>
 
+</tr>
 
+<tr>
 
-    {{-- ========================= --}}
-    {{-- BULANAN --}}
-    {{-- ========================= --}}
-    @if($mode == 'bulanan')
+<td>
 
-    <table>
+<b>Periode</b>
 
-        <tr>
-            <th>Nama</th>
-            <th>Hadir</th>
-            <th>Tepat Waktu</th>
-            <th>Terlambat</th>
-            <th>Absen</th>
-            <th>Persentase</th>
-            <th>Insentif</th>
-        </tr>
+</td>
 
-        @foreach($rekap as $r)
+<td>
 
-        <tr>
+{{ \Carbon\Carbon::parse($bulan)->translatedFormat('F Y') }}
 
-            <td>
-                {{ $r['nama'] }}
-            </td>
+</td>
 
-            <td class="text-center">
-                {{ $r['hadir'] }}
-            </td>
+</tr>
 
-            <td class="text-center">
-                {{ $r['tepat'] }}
-            </td>
+</table>
 
-            <td class="text-center">
-                {{ $r['telat'] }}
-            </td>
+<table>
 
-            <td class="text-center">
-                {{ $r['absen'] }}
-            </td>
+<thead>
 
-            <td class="text-center">
-                {{ $r['persen'] }}%
-            </td>
+<tr>
 
-            <td class="text-center">
-                Rp {{ number_format($r['insentif'], 0, ',', '.') }}
-            </td>
+<th>Nama</th>
 
-        </tr>
+<th>Hadir</th>
 
-        @endforeach
+<th>Terlambat</th>
 
-    </table>
+<th>Ketidakhadiran</th>
 
-    @endif
+<th>Keterangan</th>
 
+<th>Persentase</th>
 
+<th>Insentif</th>
 
-    {{-- FOOTER --}}
-    <div class="footer">
+</tr>
 
-        <p>
-            Banjarbaru,
-            {{ date('d-m-Y') }}
-        </p>
+</thead>
 
-        <br><br><br>
+<tbody>
 
-        <p>
-            <b>Kepala Personalia</b>
-        </p>
+@foreach($rekap as $r)
 
-    </div>
+<tr>
+
+<td>
+
+{{ $r['nama'] }}
+
+</td>
+
+<td class="text-center">
+
+{{ $r['hadir'] }}
+
+</td>
+
+<td class="text-center">
+
+{{ $r['telat'] }}
+
+</td>
+
+<td class="text-center">
+
+{{ $r['ketidakhadiran'] }}
+
+</td>
+
+<td class="text-center">
+
+@if($r['keterangan']=="Disiplin")
+
+<span class="tepat">
+
+Disiplin
+
+</span>
+
+@else
+
+<span class="terlambat">
+
+Kurang Disiplin
+
+</span>
+
+@endif
+
+</td>
+
+<td class="text-center">
+
+{{ $r['persen'] }}%
+
+</td>
+
+<td class="text-right">
+
+Rp {{ number_format($r['insentif'],0,',','.') }}
+
+</td>
+
+</tr>
+
+@endforeach
+
+</tbody>
+
+</table>
+
+@endif
+
+<div class="footer">
+
+<p>
+
+Banjarbaru,
+
+{{ \Carbon\Carbon::now()->translatedFormat('d F Y') }}
+
+</p>
+
+<br><br><br>
+
+<p>
+
+<b>
+
+Kepala Personalia
+
+</b>
+
+</p>
+
+</div>
 
 </body>
 </html>
