@@ -9,7 +9,6 @@ use App\Models\PresensiLog;
 use App\Models\Presensi;
 use App\Models\Karyawan;
 use App\Jobs\SinkronisasiPresensiJob;
-
 class PresensiApiController extends Controller
 {
    public function upload(Request $request)

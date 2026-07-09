@@ -87,42 +87,46 @@ class LaporanController extends Controller
 
                 $hadir = $presensi->count();
 
-                $telat = $presensi
-                    ->where('status', 'Terlambat')
-                    ->count();
+                $telat = $presensi->where('status','Terlambat')->count();
 
-                $tepat = $presensi
-                    ->where('status', 'Tepat Waktu')
-                    ->count();
+                $hariKerja = 28;
 
-                $hariKerja = 26;
+                $ketidakhadiran = max(0,$hariKerja-$hadir);
 
-                $absen = max(0, $hariKerja - $hadir);
+                $nilaiDisiplin = ($hadir - $telat);
 
-                /*
-                |--------------------------------------------------------------------------
-                | INSENTIF
-                |--------------------------------------------------------------------------
-                */
-                $insentif = $hadir * 15000;
+                $persen = round(($nilaiDisiplin/$hariKerja)*100,1);
 
-                /*
-                |--------------------------------------------------------------------------
-                | PERSENTASE KEHADIRAN
-                |--------------------------------------------------------------------------
-                */
-                $persen = $hariKerja > 0
-                    ? round(($hadir / $hariKerja) * 100, 1)
-                    : 0;
+                if ($hadir == 0) {
+                    $keterangan = null;   // atau '-'
+                } elseif ($persen >= 75) {
+                    $keterangan = 'Disiplin';
+                } else {
+                    $keterangan = 'Kurang Disiplin';
+                }
+
+                $insentif = ($hadir - $telat) * 15000;
+
+                if($insentif < 0){
+                    $insentif = 0;
+                }
 
                 $rekap[] = [
-                    'nama' => $k->nama,
-                    'hadir' => $hadir,
-                    'tepat' => $tepat,
-                    'telat' => $telat,
-                    'absen' => $absen,
-                    'persen' => $persen,
-                    'insentif' => $insentif
+
+                    'nama'=>$k->nama,
+
+                    'hadir'=>$hadir,
+
+                    'telat'=>$telat,
+
+                    'ketidakhadiran'=>$ketidakhadiran,
+
+                    'keterangan'=>$keterangan,
+
+                    'persen'=>$persen,
+
+                    'insentif'=>$insentif
+
                 ];
             }
 
@@ -195,55 +199,57 @@ class LaporanController extends Controller
     */
     elseif ($mode == 'bulanan') {
 
-        $karyawans = Karyawan::all();
+    $karyawans = Karyawan::all();
 
-        foreach ($karyawans as $k) {
+    foreach ($karyawans as $k) {
 
-            $presensi = Presensi::where('karyawan_id', $k->id)
-                ->where('tanggal', 'LIKE', Carbon::parse($bulan)->format('Y-m') . '%')
-                ->get();
+        $presensi = Presensi::where('karyawan_id', $k->id)
+            ->where('tanggal', 'LIKE', Carbon::parse($bulan)->format('Y-m') . '%')
+            ->get();
 
-            $hadir = $presensi->count();
+        $hadir = $presensi->count();
 
-            $telat = $presensi
-                ->where('status', 'Terlambat')
-                ->count();
+        $telat = $presensi
+            ->where('status', 'Terlambat')
+            ->count();
 
-            $tepat = $presensi
-                ->where('status', 'Tepat Waktu')
-                ->count();
+        $hariKerja = 28;
 
-            $hariKerja = 26;
+        $ketidakhadiran = max(0, $hariKerja - $hadir);
 
-            $absen = max(0, $hariKerja - $hadir);
+        $nilaiDisiplin = $hadir - $telat;
 
-            /*
-            |--------------------------------------------------------------------------
-            | INSENTIF
-            |--------------------------------------------------------------------------
-            */
-            $insentif = $hadir * 15000;
+        $persen = round(($nilaiDisiplin / $hariKerja) * 100, 1);
 
-            /*
-            |--------------------------------------------------------------------------
-            | PERSENTASE
-            |--------------------------------------------------------------------------
-            */
-            $persen = $hariKerja > 0
-                ? round(($hadir / $hariKerja) * 100, 1)
-                : 0;
+        $keterangan = $persen >= 75
+            ? 'Disiplin'
+            : 'Kurang Disiplin';
 
-            $rekap[] = [
-                'nama' => $k->nama,
-                'hadir' => $hadir,
-                'tepat' => $tepat,
-                'telat' => $telat,
-                'absen' => $absen,
-                'persen' => $persen,
-                'insentif' => $insentif
-            ];
+        $insentif = $nilaiDisiplin * 15000;
+
+        if ($insentif < 0) {
+            $insentif = 0;
         }
+
+        $rekap[] = [
+
+            'nama' => $k->nama,
+
+            'hadir' => $hadir,
+
+            'telat' => $telat,
+
+            'ketidakhadiran' => $ketidakhadiran,
+
+            'keterangan' => $keterangan,
+
+            'persen' => $persen,
+
+            'insentif' => $insentif,
+
+        ];
     }
+}
 
     /*
     |--------------------------------------------------------------------------
@@ -289,193 +295,4 @@ class LaporanController extends Controller
 
     return $pdf->download($filename);
 }
-    /*
-    |--------------------------------------------------------------------------
-    | LAPORAN KETERLAMBATAN
-    |--------------------------------------------------------------------------
-    */
-
-    public function keterlambatan(Request $request)
-    {
-        $bulan = $request->bulan ?? now()->format('Y-m');
-
-        $karyawans = Karyawan::all();
-
-        $data = [];
-
-        foreach ($karyawans as $k) {
-
-            $presensi = Presensi::where('karyawan_id', $k->id)
-                ->where('tanggal', 'LIKE', $bulan . '%')
-                ->get();
-
-            $hadir = $presensi->count();
-
-            $telat = $presensi
-                ->where('status', 'Terlambat')
-                ->count();
-
-            $persenTelat = $hadir > 0
-                ? round(($telat / $hadir) * 100, 1)
-                : 0;
-
-            $data[] = [
-                'nama' => $k->nama,
-                'telat' => $telat,
-                'hadir' => $hadir,
-                'persen_telat' => $persenTelat
-            ];
-        }
-
-        return view('laporan.keterlambatan.index', compact(
-            'data',
-            'bulan'
-        ));
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | EXPORT PDF KETERLAMBATAN
-    |--------------------------------------------------------------------------
-    */
-
-    public function exportKeterlambatanPdf(Request $request)
-    {
-        $bulan = $request->bulan ?? now()->format('Y-m');
-
-        $karyawans = Karyawan::all();
-
-        $data = [];
-
-        foreach ($karyawans as $k) {
-
-            $presensi = Presensi::where('karyawan_id', $k->id)
-                ->where('tanggal', 'LIKE', $bulan . '%')
-                ->get();
-
-            $hadir = $presensi->count();
-
-            $telat = $presensi
-                ->where('status', 'Terlambat')
-                ->count();
-
-            $persenTelat = $hadir > 0
-                ? round(($telat / $hadir) * 100, 1)
-                : 0;
-
-            $data[] = [
-                'nama' => $k->nama,
-                'telat' => $telat,
-                'hadir' => $hadir,
-                'persen_telat' => $persenTelat
-            ];
-        }
-
-        $pdf = Pdf::loadView(
-            'laporan.keterlambatan.pdf',
-            compact('data', 'bulan')
-        )->setPaper('a4', 'portrait');
-
-        return $pdf->download('laporan-keterlambatan.pdf');
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | LAPORAN KEDISIPLINAN
-    |--------------------------------------------------------------------------
-    */
-
-    public function kedisiplinan(Request $request)
-    {
-        $bulan = $request->bulan ?? now()->format('Y-m');
-
-        $karyawans = Karyawan::all();
-
-        $data = [];
-
-        foreach ($karyawans as $k) {
-
-            $presensi = Presensi::where('karyawan_id', $k->id)
-                ->where('tanggal', 'LIKE', $bulan . '%')
-                ->get();
-
-            $hadir = $presensi->count();
-
-            $tepat = $presensi
-                ->where('status', 'Tepat Waktu')
-                ->count();
-
-            $telat = $presensi
-                ->where('status', 'Terlambat')
-                ->count();
-
-            $persenDisiplin = $hadir > 0
-                ? round(($tepat / $hadir) * 100, 1)
-                : 0;
-
-            $data[] = [
-                'nama' => $k->nama,
-                'hadir' => $hadir,
-                'tepat' => $tepat,
-                'telat' => $telat,
-                'persen_disiplin' => $persenDisiplin
-            ];
-        }
-
-        return view('laporan.kedisiplinan.index', compact(
-            'data',
-            'bulan'
-        ));
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | EXPORT PDF KEDISIPLINAN
-    |--------------------------------------------------------------------------
-    */
-
-    public function exportKedisiplinanPdf(Request $request)
-    {
-        $bulan = $request->bulan ?? now()->format('Y-m');
-
-        $karyawans = Karyawan::all();
-
-        $data = [];
-
-        foreach ($karyawans as $k) {
-
-            $presensi = Presensi::where('karyawan_id', $k->id)
-                ->where('tanggal', 'LIKE', $bulan . '%')
-                ->get();
-
-            $hadir = $presensi->count();
-
-            $tepat = $presensi
-                ->where('status', 'Tepat Waktu')
-                ->count();
-
-            $telat = $presensi
-                ->where('status', 'Terlambat')
-                ->count();
-
-            $persenDisiplin = $hadir > 0
-                ? round(($tepat / $hadir) * 100, 1)
-                : 0;
-
-            $data[] = [
-                'nama' => $k->nama,
-                'hadir' => $hadir,
-                'tepat' => $tepat,
-                'telat' => $telat,
-                'persen_disiplin' => $persenDisiplin
-            ];
-        }
-
-        $pdf = Pdf::loadView(
-            'laporan.kedisiplinan.pdf',
-            compact('data', 'bulan')
-        )->setPaper('a4', 'portrait');
-
-        return $pdf->download('laporan-kedisiplinan.pdf');
-    }
 }

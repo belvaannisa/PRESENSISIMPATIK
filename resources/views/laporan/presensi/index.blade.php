@@ -96,7 +96,7 @@
             {{-- DESKTOP --}}
             <div class="table-responsive table-mobile">
                 <table class="table table-bordered table-striped">
-                    <thead class="text-center style="background:#FA713F;color:white;">
+                    <thead class="text-center" style="background:#FA713F;color:white;">
                         <tr>
                             <th>Nama</th>
                             <th>Tanggal</th>
@@ -162,70 +162,210 @@
             @if($mode == 'bulanan')
 
             {{-- DESKTOP --}}
-            <div class="table-responsive table-mobile">
-                <h5>Rekap Presensi</h5>
-                <table class="table table-bordered">
-                    <thead style="background:#FA713F;color:white;">
-                        <tr>
-                            <th>Nama</th>
-                            <th>Hadir</th>
-                            <th>Terlambat</th>
-                            <th>Absen</th>
-                            <th>%</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($rekap as $r)
-                        <tr>
-                            <td>{{ $r['nama'] }}</td>
-                            <td>{{ $r['hadir'] }}</td>
-                            <td class="text-danger">{{ $r['telat'] }}</td>
-                            <td>{{ $r['absen'] }}</td>
-                            <td>{{ $r['persen'] }}%</td>
-                        </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+           <div class="table-responsive table-mobile">
+            <h5 class="mb-3">Rekap Presensi</h5>
+
+            <table class="table table-bordered table-striped">
+
+                <thead class="text-center style="background:#FA713F;color:white;">
+
+                <tr>
+                    <th>Nama</th>
+                    <th>Hadir</th>
+                    <th>Terlambat</th>
+                    <th>Ketidakhadiran</th>
+                    <th>Keterangan</th>
+                    <th>Persentase</th>
+                </tr>
+
+                </thead>
+
+                <tbody>
+
+                @forelse($rekap as $r)
+
+                <tr>
+
+                    <td>{{ $r['nama'] }}</td>
+
+                    <td class="text-center">
+                        {{ $r['hadir'] }}
+                    </td>
+
+                    <td class="text-center text-danger">
+                        {{ $r['telat'] }}
+                    </td>
+
+                    <td class="text-center">
+                        {{ $r['ketidakhadiran'] }}
+                    </td>
+
+                    <td class="text-center">
+
+                       @if(empty($r['keterangan']))
+
+                    <span class="text-muted">-</span>
+
+                        @elseif($r['keterangan'] == 'Disiplin')
+
+                            <span class="badge bg-success">
+                                Disiplin
+                            </span>
+
+                        @else
+
+                            <span class="badge bg-danger">
+                                Kurang Disiplin
+                            </span>
+
+                        @endif
+                    </td>
+
+                    <td class="text-center">
+                        {{ $r['persen'] }}%
+                    </td>
+
+                </tr>
+
+                @empty
+
+                <tr>
+                    <td colspan="6" class="text-center">
+                        Tidak ada data
+                    </td>
+                </tr>
+
+                @endforelse
+
+                </tbody>
+
+            </table>
 
                 <h5 class="mt-4">Laporan Insentif</h5>
+
                 <table class="table table-bordered">
-                    <thead style="background:#28a745;color:white;">
-                        <tr>
-                            <th>Nama</th>
-                            <th>Hadir</th>
-                            <th>Insentif</th>
-                        </tr>
+
+                    <thead class="text-center style="background:#28a745;color:white;">
+
+                    <tr>
+
+                        <th>Nama</th>
+                        <th>Hadir</th>
+                        <th>Insentif</th>
+
+                    </tr>
+
                     </thead>
+
                     <tbody>
-                        @foreach($rekap as $r)
-                        <tr>
-                            <td>{{ $r['nama'] }}</td>
-                            <td>{{ $r['hadir'] }}</td>
-                            <td class="text-success">
-                                Rp {{ number_format($r['insentif'], 0, ',', '.') }}
-                            </td>
-                        </tr>
-                        @endforeach
+
+                    @foreach($rekap as $r)
+
+                    <tr>
+
+                        <td>{{ $r['nama'] }}</td>
+
+                        <td class="text-center">
+                            {{ $r['hadir'] }}
+                        </td>
+
+                        <td class="text-end text-success">
+                            Rp {{ number_format($r['insentif'],0,',','.') }}
+                        </td>
+
+                    </tr>
+
+                    @endforeach
+
                     </tbody>
+
                 </table>
+
             </div>
 
-            {{-- MOBILE --}}
-            <div class="card-mobile">
+                {{-- MOBILE --}}
+                <div class="card-mobile">
 
-                <h6 class="mb-2">Rekap Presensi</h6>
+            <h6 class="mb-3">
+            Rekap Presensi
+            </h6>
 
-                @foreach($rekap as $r)
-                <div class="card-item">
-                    <h6>{{ $r['nama'] }}</h6>
+            @forelse($rekap as $r)
 
-                    <p>Hadir: <strong>{{ $r['hadir'] }}</strong></p>
-                    <p>Terlambat: <span class="badge bg-danger">{{ $r['telat'] }}</span></p>
-                    <p>Absen: {{ $r['absen'] }}</p>
-                    <p>Persen: <span class="badge bg-primary">{{ $r['persen'] }}%</span></p>
-                    <p>Insentif: <span class="badge bg-success">Rp {{ number_format($r['insentif'],0,',','.') }}</span></p>
-                </div>
-                @endforeach
+            <div class="card-item">
+
+            <h6>{{ $r['nama'] }}</h6>
+
+            <p>
+            Hadir :
+            <strong>{{ $r['hadir'] }}</strong>
+            </p>
+
+            <p>
+            Terlambat :
+            <span class="badge bg-danger">
+            {{ $r['telat'] }}
+            </span>
+            </p>
+
+            <p>
+            Ketidakhadiran :
+            {{ $r['ketidakhadiran'] }}
+            </p>
+
+            <p>
+
+            Keterangan :
+
+            @if($r['keterangan']=="Disiplin")
+
+            <span class="badge bg-success">
+            Disiplin
+            </span>
+
+            @else
+
+            <span class="badge bg-danger">
+            Kurang Disiplin
+            </span>
+
+            @endif
+
+            </p>
+
+            <p>
+
+            Persentase :
+
+            <span class="badge bg-primary">
+
+            {{ $r['persen'] }}%
+
+            </span>
+
+            </p>
+
+            <p>
+
+            Insentif :
+
+            <span class="badge bg-success">
+
+            Rp {{ number_format($r['insentif'],0,',','.') }}
+
+            </span>
+
+            </p>
+
+            </div>
+
+            @empty
+
+            <div class="text-center">
+            Tidak ada data
+            </div>
+
+            @endforelse
 
             </div>
 
@@ -241,10 +381,11 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
+
 @if($mode == 'bulanan')
 let hadir = {{ collect($rekap)->sum('hadir') }};
 let telat = {{ collect($rekap)->sum('telat') }};
-let absen = {{ collect($rekap)->sum('absen') }};
+let absen = {{ collect($rekap)->sum('ketidakhadiran') }};
 
 new Chart(document.getElementById('chartPresensi'), {
     type: 'bar',

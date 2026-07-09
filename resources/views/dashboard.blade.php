@@ -40,41 +40,45 @@
         <div class="card-body">
 
             {{-- CARD --}}
-            <div class="row">
+           <div class="row {{ Auth::user()->role == 'pimpinan' ? 'justify-content-center' : '' }}">
 
-                <div class="col-md-4 col-12 mb-3">
-                    <div class="card text-white" style="background-color: #FA713F;">
-                        <div class="card-body text-center text-md-start">
-                            <h6>Total Karyawan</h6>
-                            <h3>{{ $totalKaryawan ?? 0 }}</h3>
-                        </div>
+            {{-- Total Karyawan --}}
+            <div class="{{ Auth::user()->role == 'pimpinan' ? 'col-md-5' : 'col-md-4' }} col-12 mb-3">
+                <div class="card text-white" style="background-color:#FA713F;">
+                    <div class="card-body">
+                        <h6>Total Karyawan</h6>
+                        <h3>{{ $totalKaryawan }}</h3>
                     </div>
                 </div>
-
-                <div class="col-md-4 col-12 mb-3">
-                    <div class="card text-dark" style="background-color: #FEECC8;">
-                        <div class="card-body text-center text-md-start">
-                            <h6>Total Presensi</h6>
-                            <h3>{{ $totalPresensi ?? 0 }}</h3>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-md-4 col-12 mb-3">
-                    <div class="card text-white" style="background-color: #FA713F;">
-                        <div class="card-body text-center text-md-start">
-                            <h6>Presensi Hari Ini</h6>
-                            <h3>{{ $presensiHariIni ?? 0 }}</h3>
-                        </div>
-                    </div>
-                </div>
-
             </div>
+
+            {{-- Hanya Kepala Personalia --}}
+            @if(Auth::user()->role == 'kepala_personalia')
+            <div class="col-md-4 col-12 mb-3">
+                <div class="card text-dark" style="background-color:#FEECC8;">
+                    <div class="card-body">
+                        <h6>Total Presensi</h6>
+                        <h3>{{ $totalPresensi }}</h3>
+                    </div>
+                </div>
+            </div>
+            @endif
+
+            {{-- Presensi Hari Ini --}}
+            <div class="{{ Auth::user()->role == 'pimpinan' ? 'col-md-5' : 'col-md-4' }} col-12 mb-3">
+                <div class="card text-white" style="background-color:#FA713F;">
+                    <div class="card-body">
+                        <h6>Presensi Hari Ini</h6>
+                        <h3>{{ $presensiHariIni }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
 
             {{-- TABEL --}}
             <div class="card mt-3">
                 <div class="card-header text-white" style="background-color: #FA713F;">
-                    Presensi Terbaru
+                    Aktivitas Presensi Terbaru Berdasarkan Aktivitas Presensi Terakhir Yang Berhasil Direkam Sistem:
                 </div>
 
                 <div class="card-body table-responsive-mobile">
@@ -104,54 +108,10 @@
                     </table>
                 </div>
             </div>
-               {{-- GRAFIK PRESENSI --}}
-                <div class="card mt-3">
-                    <div class="card-header text-white" style="background-color: #FA713F;">
-                        Grafik Presensi
-                    </div>
-
-                    <div class="card-body text-center">
-
-                        <canvas id="presensiChart"
-                                style="max-width:250px; max-height:250px; margin:auto;">
-                        </canvas>
-
-                    </div>
-                </div>
+            
         </div>
     </div>
 
 </div>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<script>
-const ctx = document.getElementById('presensiChart');
-
-new Chart(ctx, {
-    type: 'pie',
-    data: {
-        labels: ['Tepat Waktu', 'Terlambat'],
-        datasets: [{
-            data: [
-                {{ $tepatWaktu }},
-                {{ $terlambat }}
-            ],
-            backgroundColor: [
-                '#198754',
-                '#dc3545'
-            ],
-            borderWidth: 1
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: {
-                position: 'bottom'
-            }
-        }
-    }
-});
-</script>
 @endsection
