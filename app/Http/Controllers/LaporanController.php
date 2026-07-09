@@ -93,7 +93,15 @@ class LaporanController extends Controller
 
                 $hariKerja = 28;
 
-                $ketidakhadiran = max(0, $hariKerja - $hadir);
+                if ($hadir == 0) {
+
+                    $ketidakhadiran = null;
+
+                } else {
+
+                    $ketidakhadiran = $hariKerja - $hadir;
+
+                }
 
                 $nilaiDisiplin = max(0, $hadir - $telat);
 
@@ -215,7 +223,15 @@ class LaporanController extends Controller
 
         $hariKerja = 28;
 
-        $ketidakhadiran = max(0, $hariKerja - $hadir);
+       if ($hadir == 0) {
+
+                $ketidakhadiran = null;
+
+            } else {
+
+                $ketidakhadiran = $hariKerja - $hadir;
+
+            }
 
         $nilaiDisiplin = max(0, $hadir - $telat);
 

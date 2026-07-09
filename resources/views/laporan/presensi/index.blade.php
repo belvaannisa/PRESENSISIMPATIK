@@ -197,17 +197,20 @@
                     </td>
 
                     <td class="text-center">
-                        @if($r['hadir'] == 0)
-                            0
-                        @else
-                            {{ $r['ketidakhadiran'] }}
-                        @endif
+
+                    @if(is_null($r['ketidakhadiran']))
+                        -
+                    @else
+                        {{ $r['ketidakhadiran'] }}
+                    @endif
+
                     </td>
 
                     <td class="text-center">
-                        @if($r['hadir'] == 0)
 
-                            0
+                        @if($r['keterangan'] == '-')
+
+                            -
 
                         @elseif($r['keterangan'] == 'Disiplin')
 
@@ -225,19 +228,15 @@
 
                     </td>
 
-                    <td class="text-center">
+                <td class="text-center">
 
-                        @if($r['hadir'] == 0)
+                    @if($r['persen'] == '-')
+                        -
+                    @else
+                        {{ $r['persen'] }}%
+                    @endif
 
-                            0
-
-                        @else
-
-                            {{ $r['persen'] }}%
-
-                        @endif
-
-                    </td>
+                </td>
 
                 </tr>
 
@@ -284,19 +283,9 @@
                         </td>
 
                         <td class="text-end">
-
-                            @if($r['hadir'] == 0)
-
-                                0
-
-                            @else
-
-                                <span class="text-success fw-bold">
-                                    Rp {{ number_format((float)$r['insentif'],0,',','.') }}
-                                </span>
-
-                            @endif
-
+                            <span class="text-success fw-bold">
+                                Rp {{ number_format((float)$r['insentif'],0,',','.') }}
+                            </span>
                         </td>
 
                     </tr>
@@ -334,80 +323,68 @@
             </span>
             </p>
 
-            <p>
+           <p>
+                Keterangan :
 
-                Ketidakhadiran :
+                @if($r['keterangan'] == '-')
 
-                @if($r['hadir']==0)
+                    -
 
-                0
+                @elseif($r['keterangan'] == 'Disiplin')
+
+                <span class="badge bg-success">
+                Disiplin
+                </span>
 
                 @else
 
-                {{ $r['ketidakhadiran'] }}
+                <span class="badge bg-danger">
+                Kurang Disiplin
+                </span>
 
+                @endif
+
+            </p>
+
+                <p>
+                Ketidakhadiran :
+
+                @if(is_null($r['ketidakhadiran']))
+                    -
+                @else
+                    {{ $r['ketidakhadiran'] }}
                 @endif
 
                 </p>
-            <p>
 
-            Keterangan :
+           <p>
+                Persentase :
 
-            @if($r['hadir'] == 0)
+                @if($r['persen'] == '-')
 
-            0
+                -
 
-            @elseif($r['keterangan'] == 'Disiplin')
-
-            <span class="badge bg-success">
-                Disiplin
-            </span>
-
-            @else
-
-            <span class="badge bg-danger">
-                Kurang Disiplin
-            </span>
-
-            @endif
-
-            </p>
-
-            <p>
-
-            Persentase :
-
-            @if($r['hadir']==0)
-
-            0
-
-            @else
-
-            <span class="badge bg-primary">
-
-            {{ $r['persen'] }}%
-
-            </span>
-
-            @endif
-
-            </p>
-
-            <p>
-
-                Insentif :
-
-                <span class="badge bg-success">
-
-                @if($r['hadir'] == 0)
-                    0
                 @else
-                    Rp {{ number_format((float) $r['insentif'], 0, ',', '.') }}
-                @endif
 
+                <span class="badge bg-primary">
+                {{ $r['persen'] }}%
                 </span>
 
+                @endif
+
             </p>
+
+                <p>
+
+                    Insentif :
+
+                    <span class="badge bg-success">
+
+                    Rp {{ number_format((float)$r['insentif'],0,',','.') }}
+
+                    </span>
+
+                </p>
 
             </div>
 
@@ -435,23 +412,32 @@
 <script>
 
 @if($mode == 'bulanan')
-let hadir = {{ collect($rekap)->sum('hadir') }};
-let telat = {{ collect($rekap)->sum('telat') }};
-let absen = {{ collect($rekap)->sum(function($item){
-return is_numeric($item['ketidakhadiran']) ? $item['ketidakhadiran'] : 0;
-}) }};
 
-new Chart(document.getElementById('chartPresensi'), {
-    type: 'bar',
-    data: {
-        labels: ['Hadir', 'Terlambat', 'Ketidakhadiran'],
-        datasets: [{
-            label: 'Statistik Presensi',
-            data: [hadir, telat, ketidakhadiran]
+let hadir = {{ collect($rekap)->sum('hadir') }};
+
+let telat = {{ collect($rekap)->sum('telat') }};
+
+let ketidakhadiran = {{
+collect($rekap)->sum(function($item){
+    return is_null($item['ketidakhadiran'])
+        ? 0
+        : $item['ketidakhadiran'];
+})
+}};
+
+new Chart(document.getElementById('chartPresensi'),{
+    type:'bar',
+    data:{
+        labels:['Hadir','Terlambat','Ketidakhadiran'],
+        datasets:[{
+            label:'Statistik Presensi',
+            data:[hadir,telat,ketidakhadiran]
         }]
     }
 });
+
 @endif
+
 </script>
 
 <script>
