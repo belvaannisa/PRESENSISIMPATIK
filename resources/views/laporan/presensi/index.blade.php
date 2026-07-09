@@ -197,14 +197,17 @@
                     </td>
 
                     <td class="text-center">
-                        {{ $r['ketidakhadiran'] }}
+                        @if($r['hadir'] == 0)
+                            0
+                        @else
+                            {{ $r['ketidakhadiran'] }}
+                        @endif
                     </td>
 
                     <td class="text-center">
+                        @if($r['hadir'] == 0)
 
-                       @if(empty($r['keterangan']))
-
-                    <span class="text-muted">-</span>
+                            0
 
                         @elseif($r['keterangan'] == 'Disiplin')
 
@@ -219,10 +222,21 @@
                             </span>
 
                         @endif
+
                     </td>
 
                     <td class="text-center">
-                        {{ $r['persen'] }}%
+
+                        @if($r['hadir'] == 0)
+
+                            0
+
+                        @else
+
+                            {{ $r['persen'] }}%
+
+                        @endif
+
                     </td>
 
                 </tr>
@@ -269,8 +283,20 @@
                             {{ $r['hadir'] }}
                         </td>
 
-                        <td class="text-end text-success">
-                            Rp {{ number_format($r['insentif'],0,',','.') }}
+                        <td class="text-end">
+
+                            @if($r['hadir'] == 0)
+
+                                0
+
+                            @else
+
+                                <span class="text-success fw-bold">
+                                    Rp {{ number_format((float)$r['insentif'],0,',','.') }}
+                                </span>
+
+                            @endif
+
                         </td>
 
                     </tr>
@@ -309,24 +335,38 @@
             </p>
 
             <p>
-            Ketidakhadiran :
-            {{ $r['ketidakhadiran'] }}
-            </p>
 
+                Ketidakhadiran :
+
+                @if($r['hadir']==0)
+
+                0
+
+                @else
+
+                {{ $r['ketidakhadiran'] }}
+
+                @endif
+
+                </p>
             <p>
 
             Keterangan :
 
-            @if($r['keterangan']=="Disiplin")
+            @if($r['hadir'] == 0)
+
+            0
+
+            @elseif($r['keterangan'] == 'Disiplin')
 
             <span class="badge bg-success">
-            Disiplin
+                Disiplin
             </span>
 
             @else
 
             <span class="badge bg-danger">
-            Kurang Disiplin
+                Kurang Disiplin
             </span>
 
             @endif
@@ -337,23 +377,35 @@
 
             Persentase :
 
+            @if($r['hadir']==0)
+
+            0
+
+            @else
+
             <span class="badge bg-primary">
 
             {{ $r['persen'] }}%
 
             </span>
 
+            @endif
+
             </p>
 
             <p>
 
-            Insentif :
+                Insentif :
 
-            <span class="badge bg-success">
+                <span class="badge bg-success">
 
-            Rp {{ number_format($r['insentif'],0,',','.') }}
+                @if($r['hadir'] == 0)
+                    0
+                @else
+                    Rp {{ number_format((float) $r['insentif'], 0, ',', '.') }}
+                @endif
 
-            </span>
+                </span>
 
             </p>
 
@@ -385,15 +437,17 @@
 @if($mode == 'bulanan')
 let hadir = {{ collect($rekap)->sum('hadir') }};
 let telat = {{ collect($rekap)->sum('telat') }};
-let absen = {{ collect($rekap)->sum('ketidakhadiran') }};
+let absen = {{ collect($rekap)->sum(function($item){
+return is_numeric($item['ketidakhadiran']) ? $item['ketidakhadiran'] : 0;
+}) }};
 
 new Chart(document.getElementById('chartPresensi'), {
     type: 'bar',
     data: {
-        labels: ['Hadir', 'Terlambat', 'Absen'],
+        labels: ['Hadir', 'Terlambat', 'Ketidakhadiran'],
         datasets: [{
             label: 'Statistik Presensi',
-            data: [hadir, telat, absen]
+            data: [hadir, telat, ketidakhadiran]
         }]
     }
 });
