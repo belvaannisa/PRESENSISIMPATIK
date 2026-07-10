@@ -167,7 +167,7 @@
 
             <table class="table table-bordered table-striped">
 
-                <thead class="text-center style="background:#FA713F;color:white;">
+                <thead class="text-center" style="background:#FA713F;color:white;">
 
                 <tr>
                     <th>Nama</th>
@@ -199,7 +199,7 @@
                     <td class="text-center">
 
                     @if(is_null($r['ketidakhadiran']))
-                        -
+                        0
                     @else
                         {{ $r['ketidakhadiran'] }}
                     @endif
@@ -208,9 +208,9 @@
 
                     <td class="text-center">
 
-                        @if($r['keterangan'] == '-')
+                        @if($r['keterangan'] == '0')
 
-                            -
+                            0
 
                         @elseif($r['keterangan'] == 'Disiplin')
 
@@ -230,10 +230,14 @@
 
                 <td class="text-center">
 
-                    @if($r['persen'] == '-')
-                        -
+                    @if($r['persen'] === '-')
+
+                        -%
+
                     @else
+
                         {{ $r['persen'] }}%
+
                     @endif
 
                 </td>
@@ -258,7 +262,7 @@
 
                 <table class="table table-bordered">
 
-                    <thead class="text-center style="background:#28a745;color:white;">
+                    <thead class="text-center" style="background:#28a745;color:white;">
 
                     <tr>
 
@@ -326,9 +330,9 @@
            <p>
                 Keterangan :
 
-                @if($r['keterangan'] == '-')
+                @if($r['keterangan'] == '0')
 
-                    -
+                    0
 
                 @elseif($r['keterangan'] == 'Disiplin')
 
@@ -350,7 +354,7 @@
                 Ketidakhadiran :
 
                 @if(is_null($r['ketidakhadiran']))
-                    -
+                    0
                 @else
                     {{ $r['ketidakhadiran'] }}
                 @endif
@@ -360,15 +364,15 @@
            <p>
                 Persentase :
 
-                @if($r['persen'] == '-')
+                @if($r['persen'] === '-')
 
-                -
+                    -%
 
                 @else
 
-                <span class="badge bg-primary">
-                {{ $r['persen'] }}%
-                </span>
+                    <span class="badge bg-primary">
+                        {{ $r['persen'] }}%
+                    </span>
 
                 @endif
 

@@ -147,41 +147,45 @@ Route::middleware([
         'index'
     ])->name('karyawan.index');
 
-Route::get('/karyawan/tambah', [KaryawanController::class, 'create'])
-    ->name('karyawan.tambah');
-
-    Route::get('/karyawan/{karyawan}', [
-        KaryawanController::class,
-        'show'
-    ])->name('karyawan.show');
 
 });
 
 
 
-/*
-|--------------------------------------------------------------------------
-| ADMIN + KEPALA PERSONALIA
-|--------------------------------------------------------------------------
-| FULL CRUD OPERASIONAL
-|--------------------------------------------------------------------------
-*/
+    /*
+    |--------------------------------------------------------------------------
+    | Semua role bisa melihat data karyawan
+    |--------------------------------------------------------------------------
+    */
+
+    Route::middleware([
+        'auth',
+        'role:admin,kepala_personalia,pimpinan'
+    ])->group(function () {
+
+        Route::get('/karyawan', [KaryawanController::class, 'index'])
+            ->name('karyawan.index');
+
+        Route::get('/karyawan/{id}/detail', [KaryawanController::class, 'detail'])
+            ->name('karyawan.detail');
+
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Admin + Kepala Personalia
+    |--------------------------------------------------------------------------
+    */
 
     Route::middleware([
         'auth',
         'role:admin,kepala_personalia'
     ])->group(function () {
 
-    /*
-    |--------------------------------------------------------------------------
-    | KARYAWAN CRUD
-    |--------------------------------------------------------------------------
-    */
+        Route::resource('karyawan', KaryawanController::class)
+            ->except(['index', 'show']);
 
-    Route::resource('karyawan', KaryawanController::class)
-        ->except(['index', 'show']);
-
-
+    });
 
     /*
     |--------------------------------------------------------------------------
@@ -233,10 +237,7 @@ Route::get('/karyawan/tambah', [KaryawanController::class, 'create'])
         PresensiController::class,
         'upload'
     ])->name('presensi.upload');
-    });
-
-
-
+    
     /*
     |--------------------------------------------------------------------------
     | LAPORAN
@@ -267,46 +268,6 @@ Route::get('/karyawan/tambah', [KaryawanController::class, 'create'])
         LaporanController::class,
         'exportPdf'
     ])->name('laporan.presensi.exportPdf');
-
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | LAPORAN KETERLAMBATAN
-    |--------------------------------------------------------------------------
-    */
-
-    Route::get('/laporan/keterlambatan', [
-        LaporanController::class,
-        'keterlambatan'
-    ])->name('laporan.keterlambatan');
-
-
-
-    Route::get('/laporan/keterlambatan/export-pdf', [
-        LaporanController::class,
-        'exportKeterlambatanPdf'
-    ])->name('laporan.keterlambatan.exportPdf');
-
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | LAPORAN KEDISIPLINAN
-    |--------------------------------------------------------------------------
-    */
-
-    Route::get('/laporan/kedisiplinan', [
-        LaporanController::class,
-        'kedisiplinan'
-    ])->name('laporan.kedisiplinan');
-
-
-
-    Route::get('/laporan/kedisiplinan/export-pdf', [
-        LaporanController::class,
-        'exportKedisiplinanPdf'
-    ])->name('laporan.kedisiplinan.exportPdf');
 
 });
 

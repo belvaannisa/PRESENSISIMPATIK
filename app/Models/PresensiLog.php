@@ -9,6 +9,7 @@ class PresensiLog extends Model
 {
     
    protected $fillable = [
+    'record_hash',
     'pin',
     'nama',
     'tanggal',

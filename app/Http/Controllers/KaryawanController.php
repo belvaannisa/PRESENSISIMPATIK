@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Karyawan;
 use Illuminate\Http\Request;
+use App\Models\Presensi;
 
 class KaryawanController extends Controller
 {
@@ -134,5 +135,20 @@ class KaryawanController extends Controller
 
         return redirect()->route('karyawan.index')
                          ->with('success', 'Data Karyawan Berhasil Dihapus!');
+    }
+
+    public function detail($id)
+    {
+        $karyawan = Karyawan::findOrFail($id);
+
+        $presensis = Presensi::where('karyawan_id', $id)
+            ->orderBy('tanggal', 'desc')
+            ->orderBy('jam_masuk', 'desc')
+            ->get();
+
+        return view('karyawan.detail', compact(
+            'karyawan',
+            'presensis'
+        ));
     }
 }

@@ -98,9 +98,8 @@
                             <th>Email</th>
                             <th>Tanggal Masuk</th>
                             <th>Status</th>
-                             @if(auth()->user()->role != 'pimpinan')
-                                <th width="150">Aksi</th>
-                            @endif
+                            <th width="180">Aksi</th>
+  
                         </tr>
                     </thead>
                    <tbody>
@@ -122,37 +121,49 @@
                                 @endif
                             </td>
 
-                            @if(auth()->user()->role != 'pimpinan')
-                            <td class="text-center">
+                           <td class="text-center">
 
-                                <a href="{{ route('karyawan.edit', $k->id) }}"
-                                class="btn btn-warning btn-sm">
-                                    Edit
+                                {{-- Detail tampil untuk semua role --}}
+                                <a href="{{ route('karyawan.detail', $k->id) }}"
+                                    class="btn btn-info btn-sm"
+                                    title="Detail">
+                                    <i class="bi bi-eye-fill"></i>
                                 </a>
 
-                                <form action="{{ route('karyawan.destroy', $k->id) }}"
-                                    method="POST"
-                                    class="d-inline">
+                                {{-- Edit & Hapus hanya untuk Kepala Personalia --}}
+                                @if(auth()->user()->role != 'pimpinan')
 
-                                    @csrf
-                                    @method('DELETE')
+                                    <a href="{{ route('karyawan.edit', $k->id) }}"
+                                        class="btn btn-warning btn-sm"
+                                        title="Edit">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </a>
 
-                                    <button type="submit"
+                                    <form action="{{ route('karyawan.destroy', $k->id) }}"
+                                        method="POST"
+                                        class="d-inline">
+
+                                        @csrf
+                                        @method('DELETE')
+
+                                        <button type="submit"
                                             class="btn btn-danger btn-sm"
+                                            title="Hapus"
                                             onclick="return confirm('Yakin ingin menghapus data karyawan ini?')">
-                                        Hapus
-                                    </button>
 
-                                </form>
+                                            <i class="bi bi-trash-fill"></i>
+
+                                        </button>
+
+                                    </form>
+
+                                @endif
 
                             </td>
-                            @endif
-
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="{{ auth()->user()->role == 'pimpinan' ? 8 : 9 }}"
-                                class="text-center text-muted">
+                            <td colspan="9">
                                 Data Karyawan Belum Tersedia
                             </td>
                         </tr>
@@ -189,12 +200,18 @@
                         @endif
                     </div>
 
-                    @if(auth()->user()->role != 'pimpinan')
                     <div class="mt-3">
 
+                    <a href="{{ route('karyawan.detail', $k->id) }}"
+                        class="btn btn-info btn-sm">
+                        <i class="bi bi-eye-fill"></i>
+                    </a>
+
+                    @if(auth()->user()->role != 'pimpinan')
+
                         <a href="{{ route('karyawan.edit', $k->id) }}"
-                        class="btn btn-warning btn-sm">
-                            Edit
+                            class="btn btn-warning btn-sm">
+                            <i class="bi bi-pencil-square"></i>
                         </a>
 
                         <form action="{{ route('karyawan.destroy', $k->id) }}"
@@ -205,17 +222,13 @@
                             @method('DELETE')
 
                             <button type="submit"
-                                    class="btn btn-danger btn-sm"
-                                    onclick="return confirm('Yakin ingin menghapus data karyawan ini?')">
-                                Hapus
+                                class="btn btn-danger btn-sm">
+                                <i class="bi bi-trash-fill"></i>
                             </button>
 
                         </form>
 
-                    </div>
                     @endif
-
-                        </td>
 
                 </div>
                 @empty

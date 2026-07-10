@@ -93,9 +93,15 @@ class LaporanController extends Controller
 
                 $hariKerja = 28;
 
+                $nilaiDisiplin = max(0, $hadir - $telat);
+
+                // ===============================
+                // Ketidakhadiran
+                // ===============================
                 if ($hadir == 0) {
 
-                    $ketidakhadiran = null;
+                    // hanya tampilan
+                    $ketidakhadiran = 0;
 
                 } else {
 
@@ -103,22 +109,36 @@ class LaporanController extends Controller
 
                 }
 
-                $nilaiDisiplin = max(0, $hadir - $telat);
-
-                $persen = round(($nilaiDisiplin / $hariKerja) * 100, 1);
-
-                // Keterangan
+                // ===============================
+                // Persentase
+                // ===============================
                 if ($hadir == 0) {
-                    $keterangan = '-';
+
                     $persen = '-';
-                    $insentif = '-';
-                } elseif ($hadir >= 20 && $telat <= 3) {
-                    $keterangan = 'Disiplin';
-                    $insentif = $nilaiDisiplin * 15000;
+
                 } else {
-                    $keterangan = 'Kurang Disiplin';
-                    $insentif = $nilaiDisiplin * 15000;
+
+                    $persen = round(($nilaiDisiplin / $hariKerja) * 100, 1);
+
                 }
+
+                // ===============================
+                // Keterangan
+                // ===============================
+                if ($hadir >= 20 && $telat <= 3) {
+
+                    $keterangan = 'Disiplin';
+
+                } else {
+
+                    $keterangan = 'Kurang Disiplin';
+
+                }
+
+                // ===============================
+                // Insentif
+                // ===============================
+                $insentif = $nilaiDisiplin * 15000;
 
                 $rekap[] = [
 
@@ -223,37 +243,52 @@ class LaporanController extends Controller
 
         $hariKerja = 28;
 
-       if ($hadir == 0) {
-
-                $ketidakhadiran = null;
-
-            } else {
-
-                $ketidakhadiran = $hariKerja - $hadir;
-
-            }
-
         $nilaiDisiplin = max(0, $hadir - $telat);
 
-        $persen = round(($nilaiDisiplin / $hariKerja) * 100, 1);
-
+        // ===============================
+        // Ketidakhadiran
+        // ===============================
         if ($hadir == 0) {
 
-            $keterangan = '-';
-            $persen = 0;
-            $insentif = 0;
+            // hanya tampilan
+            $ketidakhadiran = 0;
 
-        } elseif ($hadir >= 20 && $telat <= 3) {
+        } else {
+
+            $ketidakhadiran = $hariKerja - $hadir;
+
+        }
+
+        // ===============================
+        // Persentase
+        // ===============================
+        if ($hadir == 0) {
+
+            $persen = '-';
+
+        } else {
+
+            $persen = round(($nilaiDisiplin / $hariKerja) * 100, 1);
+
+        }
+
+        // ===============================
+        // Keterangan
+        // ===============================
+        if ($hadir >= 20 && $telat <= 3) {
 
             $keterangan = 'Disiplin';
-            $insentif = $nilaiDisiplin * 15000;
 
         } else {
 
             $keterangan = 'Kurang Disiplin';
-            $insentif = $nilaiDisiplin * 15000;
 
         }
+
+        // ===============================
+        // Insentif
+        // ===============================
+        $insentif = $nilaiDisiplin * 15000;
 
         $rekap[] = [
 
