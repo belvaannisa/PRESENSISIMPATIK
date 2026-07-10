@@ -94,8 +94,6 @@
                             <th>Nama</th>
                             <th>Jabatan</th>
                             <th>No. HP</th>
-                            <th>Alamat</th>
-                            <th>Email</th>
                             <th>Tanggal Masuk</th>
                             <th>Status</th>
                             <th width="180">Aksi</th>
@@ -109,8 +107,6 @@
                             <td>{{ $k->nama }}</td>
                             <td>{{ $k->jabatan }}</td>
                             <td>{{ $k->no_hp }}</td>
-                            <td>{{ $k->alamat }}</td>
-                            <td>{{ $k->email }}</td>
                             <td>{{ $k->tanggal_masuk }}</td>
 
                             <td class="text-center">
@@ -192,8 +188,6 @@
 
                     <div class="mt-2">
                         📞 {{ $k->no_hp }} <br>
-                        📧 {{ $k->email }} <br>
-                        📍 {{ $k->alamat }}
                     </div>
 
                     <div class="mt-2">

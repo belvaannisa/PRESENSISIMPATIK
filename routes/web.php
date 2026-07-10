@@ -141,9 +141,6 @@ Route::middleware([
         Route::delete('/karyawan/{karyawan}', [KaryawanController::class, 'destroy'])
             ->name('karyawan.destroy');
 
-        Route::get('/karyawan/{id}/pdf', [KaryawanController::class,'pdf'])
-            ->name('karyawan.pdf');
-
     });
 
     /*
@@ -163,8 +160,8 @@ Route::middleware([
         Route::get('/karyawan/{id}/detail', [KaryawanController::class, 'detail'])
             ->name('karyawan.detail');
 
-
-
+        Route::get('/karyawan/{id}/pdf', [KaryawanController::class, 'exportDetailPdf'])
+            ->name('karyawan.pdf');
     });
 
     /*

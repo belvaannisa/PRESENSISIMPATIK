@@ -94,8 +94,8 @@
                             @forelse($presensi as $p)
                             <tr>
                                 <td>{{ $p->karyawan->nama ?? '-' }}</td>
-                                <td>{{ $p->tanggal }}</td>
-                                <td>{{ $p->jam_masuk ?? '-' }}</td>
+                                <td class="text-center">{{ $p->tanggal ? \Carbon\Carbon::parse($p->tanggal)->format('d-m-Y') : '-' }}</td>
+                                <td class="text-center">{{ $p->jam_masuk ?? '-' }}</td>
                             </tr>
                             @empty
                             <tr>

@@ -6,6 +6,8 @@ use App\Models\Karyawan;
 use Illuminate\Http\Request;
 use App\Models\Presensi;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\Auth;
+
 class KaryawanController extends Controller
 {
     // 🔍 LIST + SEARCH + PAGINATION
@@ -50,8 +52,6 @@ class KaryawanController extends Controller
         'nama' => 'required|string|max:255',
         'jabatan' => 'required',
         'no_hp' => 'nullable|string|max:20',
-        'alamat' => 'nullable|string',
-        'email' => 'nullable|email|unique:karyawans,email',
         'tanggal_masuk' => 'nullable|date',
         'status_aktif' => 'nullable|boolean',
         'tipe_jam_keluar' => 'required',
@@ -69,8 +69,6 @@ class KaryawanController extends Controller
         'nama' => $request->nama,
         'jabatan' => $request->jabatan,
         'no_hp' => $request->no_hp,
-        'alamat' => $request->alamat,
-        'email' => $request->email,
         'tanggal_masuk' => $request->tanggal_masuk,
         'status_aktif' => $request->status_aktif,
         'tipe_jam_keluar' => $request->tipe_jam_keluar,
@@ -105,8 +103,6 @@ class KaryawanController extends Controller
             'nama' => 'required|string|max:255',
             'jabatan' => 'required',
             'no_hp' => 'nullable|string|max:20',
-            'alamat' => 'nullable|string',
-            'email' => 'nullable|email|unique:karyawans,email,' . $karyawan->id,
             'tanggal_masuk' => 'nullable|date',
             'status_aktif' => 'nullable|boolean',
         ]);
@@ -116,8 +112,6 @@ class KaryawanController extends Controller
             'nama',
             'jabatan',
             'no_hp',
-            'alamat',
-            'email',
             'tanggal_masuk',
             'status_aktif',
             'tipe_jam_keluar',
@@ -150,34 +144,25 @@ class KaryawanController extends Controller
             'karyawan',
             'presensis'
         ));
-
-        $presensis = Presensi::where('karyawan_id', $id)
-        ->orderBy('tanggal', 'desc')
-        ->orderBy('jam_masuk', 'desc')
-        ->get()
-        ->map(function ($item) {
-
-            if (empty($item->jam_masuk)) {
-                $item->status = 'Tidak Hadir';
-            }
-
-            return $item;
-    });
     }
 
-    public function pdf($id)
-{
-    $karyawan = Karyawan::findOrFail($id);
+    public function exportDetailPdf($id)
+    {
+        $karyawan = Karyawan::findOrFail($id);
 
-    $presensis = Presensi::where('karyawan_id',$id)
-        ->orderBy('tanggal','desc')
-        ->get();
+        $presensis = Presensi::where('karyawan_id', $id)
+            ->orderBy('tanggal', 'asc')
+            ->get();
 
-    $pdf = Pdf::loadView('karyawan.pdf', compact(
+        $user = Auth::user();
+
+        $pdf = Pdf::loadView('karyawan.pdf', compact(
         'karyawan',
-        'presensis'
-    ))->setPaper('a4','landscape');
+        'presensis',
+        'user'
+        ))->setPaper('a4', 'landscape');
 
-    return $pdf->download('detail-presensi-'.$karyawan->nama.'.pdf');
-}
+        return $pdf->download('detail-presensi-'.$karyawan->nama.'.pdf');
+    }
+
 }

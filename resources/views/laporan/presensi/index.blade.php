@@ -109,9 +109,15 @@
                         @forelse($data as $d)
                         <tr>
                             <td>{{ $d->karyawan->nama ?? '-' }}</td>
-                            <td class="text-center">{{ $d->tanggal }}</td>
-                            <td class="text-center">{{ $d->jam_masuk }}</td>
-                            <td class="text-center">{{ $d->jam_keluar }}</td>
+                            <td class="text-center">
+                                {{ $d->tanggal ? \Carbon\Carbon::parse($d->tanggal)->format('d-m-Y') : '-' }}
+                            </td>
+                            <td class="text-center">
+                                {{ !empty($d->jam_masuk) ? $d->jam_masuk : '-' }}
+                            </td>
+                            <td class="text-center">
+                                {{ !empty($d->jam_keluar) ? $d->jam_keluar : '-' }}
+                            </td>
                             <td class="text-center">
                                 @if($d->status == 'Terlambat')
                                     <span class="badge bg-danger">Terlambat</span>
@@ -136,9 +142,12 @@
 
                     <h6><strong>{{ $d->karyawan->nama ?? '-' }}</strong></h6>
 
-                    <p>Tanggal: {{ $d->tanggal }}</p>
-                    <p>Masuk: {{ $d->jam_masuk }}</p>
-                    <p>Keluar: {{ $d->jam_keluar }}</p>
+                    <p>
+                        Tanggal:
+                        {{ $d->tanggal ? \Carbon\Carbon::parse($d->tanggal)->format('d-m-Y') : '-' }}
+                    </p>
+                    <p>Masuk: {{ !empty($d->jam_masuk) ? $d->jam_masuk : '-' }}</p>
+                    <p>Keluar: {{ !empty($d->jam_keluar) ? $d->jam_keluar : '-' }}</p>
 
                     <p>
                         Status:

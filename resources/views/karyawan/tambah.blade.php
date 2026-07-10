@@ -94,30 +94,6 @@
                     @enderror
                 </div>
 
-                {{-- ALAMAT --}}
-                <div class="mb-3">
-                    <label class="form-label">Alamat</label>
-                    <input type="text" 
-                           name="alamat" 
-                           class="form-control @error('alamat') is-invalid @enderror"
-                           value="{{ old('alamat') }}">
-                    @error('alamat')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-                </div>
-
-                {{-- EMAIL --}}
-                <div class="mb-3">
-                    <label class="form-label">Email</label>
-                    <input type="email" 
-                           name="email" 
-                           class="form-control @error('email') is-invalid @enderror"
-                           value="{{ old('email') }}">
-                    @error('email')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-                </div>
-
                 {{-- TANGGAL MASUK --}}
                 <div class="mb-3">
                     <label class="form-label">Tanggal Masuk</label>

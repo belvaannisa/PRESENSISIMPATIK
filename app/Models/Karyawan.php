@@ -14,8 +14,6 @@ class Karyawan extends Model
     'nama',
     'jabatan',
     'no_hp',
-    'alamat',
-    'email',
     'tanggal_masuk',
     'jam_masuk',
     'jam_keluar',
