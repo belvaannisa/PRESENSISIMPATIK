@@ -96,7 +96,7 @@
 
                                 <a href="{{ route('presensi.edit', $p->id) }}"
                                    class="btn btn-warning btn-sm">
-                                    Edit
+                                    <i class="bi bi-pencil-square"></i>
                                 </a>
 
                                 <form action="{{ route('presensi.destroy', $p->id) }}"
@@ -109,7 +109,7 @@
                                     <button type="submit"
                                             class="btn btn-danger btn-sm"
                                             onclick="return confirm('Yakin ingin menghapus data presensi ini?')">
-                                        Hapus
+                                                <i class="bi bi-trash-fill"></i>
                                     </button>
 
                                 </form>

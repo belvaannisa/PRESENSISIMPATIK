@@ -7,6 +7,24 @@ use App\Models\Karyawan;
 
 class DataKaryawanSeeder extends Seeder
 {
+    private function getJamKerja($jabatan)
+    {
+        $tidakTerbatas = in_array(
+            $jabatan,
+            config('jabatan.jabatan_tidak_terbatas')
+        );
+
+        return [
+            'tipe_jam_keluar' => $tidakTerbatas
+                ? config('jabatan.tidak_terbatas')
+                : config('jabatan.terbatas'),
+
+            'jam_keluar' => $tidakTerbatas
+                ? null
+                : config('jabatan.jam_keluar_default'),
+        ];
+    }
+
     public function run(): void
     {
         $data = [
@@ -241,23 +259,34 @@ class DataKaryawanSeeder extends Seeder
             ],
         ];
 
-        foreach ($data as $item) {
+       foreach ($data as $item) {
+
+            $tidakTerbatas = in_array(
+                $item['jabatan'],
+                config('jabatan.jabatan_tidak_terbatas')
+            );
 
             Karyawan::updateOrCreate(
                 ['pin' => $item['pin']],
                 [
+
                     'nama'             => $item['nama'],
                     'jabatan'          => $item['jabatan'],
                     'no_hp'            => $item['no_hp'],
                     'alamat'           => $item['alamat'],
                     'email'            => $item['email'],
                     'tanggal_masuk'    => $item['tanggal_masuk'],
+
                     'status_aktif'     => true,
-                    'tipe_jam_keluar'  => 'terbatas',
-                    'jam_keluar'       => '17:00:00',
+
+                    'tipe_jam_keluar'  => $tidakTerbatas
+                        ? config('jabatan.tidak_terbatas')
+                        : config('jabatan.terbatas'),
+
+                    'jam_keluar' => config('jabatan.jam_keluar_default'),
+
                 ]
             );
-
         }
     }
 }
