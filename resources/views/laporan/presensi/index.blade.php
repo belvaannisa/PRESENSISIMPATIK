@@ -67,27 +67,28 @@
                     </select>
                 </div>
 
-        <div class="col-md-3 col-12" id="tanggalField">
-            <input type="date" name="tanggal" value="{{ $tanggal ?? '' }}" class="form-control">
-        </div>
+                <div class="col-md-3 col-12" id="tanggalField">
+                    <input type="date" name="tanggal" value="{{ $tanggal ?? '' }}" class="form-control">
+                </div>
 
-        <div class="col-md-3 col-12" id="bulanField">
-            <input type="month" name="bulan" value="{{ $bulan ?? '' }}" class="form-control">
-        </div>
+                <div class="col-md-3 col-12" id="bulanField">
+                    <input type="month" name="bulan" value="{{ $bulan ?? '' }}" class="form-control">
+                </div>
 
-        <div class="col-md-2 col-12">
-            <button class="btn btn-dark w-100">Filter</button>
-        </div>
+                <div class="col-md-2 col-12">
+                    <button class="btn btn-dark w-100">Filter</button>
+                </div>
 
-    </form>
+            </form>
 
-    {{-- DOWNLOAD BUTTON (KANAN) --}}
-    <div>
-        <a href="{{ route('laporan.presensi.exportPdf', request()->all()) }}"
-   class="btn btn-danger">
-    🖨 Print PDF
-        </a>
-    </div>
+            {{-- DOWNLOAD BUTTON (KANAN) --}}
+            <div>
+                <a href="{{ route('laporan.presensi.exportPdf', request()->all()) }}"
+                    class="btn btn-danger">
+                    <i class="bi bi-file-earmark-pdf-fill"></i>
+                    Print PDF
+                </a>
+            </div>
 
 </div>
             {{-- ================= HARIAN & MINGGUAN ================= --}}
@@ -257,7 +258,7 @@
 
                 <tr>
                     <td colspan="6" class="text-center">
-                        Tidak ada data
+                        Tidak Ada Data
                     </td>
                 </tr>
 
@@ -404,7 +405,7 @@
             @empty
 
             <div class="text-center">
-            Tidak ada data
+            Tidak da Data
             </div>
 
             @endforelse

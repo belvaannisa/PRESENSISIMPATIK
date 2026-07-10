@@ -13,7 +13,7 @@ class DataKaryawanSeeder extends Seeder
             [
                 'pin' => 295,
                 'nama' => 'ABDULLAH',
-                'jabatan' => 'OFFICE BOY',
+                'jabatan' => 'OFFICE BOY CABANG',
                 'no_hp' => null,
                 'alamat' => null,
                 'email' => null,
@@ -83,7 +83,7 @@ class DataKaryawanSeeder extends Seeder
             [
                 'pin' => 298,
                 'nama' => 'ISTRI UTAMI',
-                'jabatan' => 'KEPALA PERSONALIA & GUDANG',
+                'jabatan' => 'KEPALA GUDANG & KEPALA PERSONALIA',
                 'no_hp' => null,
                 'alamat' => null,
                 'email' => null,

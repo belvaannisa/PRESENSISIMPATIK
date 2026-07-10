@@ -52,15 +52,6 @@
 }
 </style>
 
-<div class="d-flex justify-content-end mb-3">
-    <a href="{{ route('karyawan.pdf',$karyawan->id) }}"
-   class="btn btn-danger btn-sm">
-
-    <i class="bi bi-file-earmark-pdf-fill"></i>
-    PDF
-    </a>
-</div>
-
 <div class="container mt-4">
 
     <div class="card shadow">
@@ -79,7 +70,14 @@
         <div class="card-body">
 
             <div class="table-responsive desktop-table">
+                <div class="d-flex justify-content-end mb-3">
+                    <a href="{{ route('karyawan.pdf',$karyawan->id) }}"
+                class="btn btn-danger btn-sm">
 
+                    <i class="bi bi-file-earmark-pdf-fill"></i>
+                    PDF
+                    </a>
+                </div>
                 <table class="table table-bordered table-striped">
 
                     <thead class="text-center text-white"

@@ -136,8 +136,8 @@ class KaryawanController extends Controller
         $karyawan = Karyawan::findOrFail($id);
 
         $presensis = Presensi::where('karyawan_id', $id)
-            ->orderBy('tanggal', 'asc')
-            ->orderBy('jam_masuk', 'asc')
+            ->orderBy('tanggal', 'desc')
+            ->orderBy('jam_masuk', 'desc')
             ->paginate(10);
 
         return view('karyawan.detail', compact(
@@ -151,15 +151,16 @@ class KaryawanController extends Controller
         $karyawan = Karyawan::findOrFail($id);
 
         $presensis = Presensi::where('karyawan_id', $id)
-            ->orderBy('tanggal', 'asc')
+            ->orderBy('tanggal', 'desc')
+            ->orderBy('jam_masuk', 'desc')
             ->get();
 
         $user = Auth::user();
 
         $pdf = Pdf::loadView('karyawan.pdf', compact(
-        'karyawan',
-        'presensis',
-        'user'
+            'karyawan',
+            'presensis',
+            'user'
         ))->setPaper('a4', 'landscape');
 
         return $pdf->download('detail-presensi-'.$karyawan->nama.'.pdf');
