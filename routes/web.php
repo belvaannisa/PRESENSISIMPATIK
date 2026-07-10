@@ -58,33 +58,6 @@ Route::post('/logout', [
 
 /*
 |--------------------------------------------------------------------------
-| PROFILE
-|--------------------------------------------------------------------------
-*/
-
-Route::middleware('auth')->group(function () {
-
-    Route::get('/profile', [
-        ProfileController::class,
-        'edit'
-    ])->name('profile.edit');
-
-    Route::patch('/profile', [
-        ProfileController::class,
-        'update'
-    ])->name('profile.update');
-
-    Route::delete('/profile', [
-        ProfileController::class,
-        'destroy'
-    ])->name('profile.destroy');
-
-});
-
-
-
-/*
-|--------------------------------------------------------------------------
 | DASHBOARD
 |--------------------------------------------------------------------------
 | Semua role bisa akses dashboard
@@ -150,7 +123,28 @@ Route::middleware([
 
 });
 
+    // Admin & Kepala Personalia
+    Route::middleware(['auth','role:admin,kepala_personalia'])->group(function () {
 
+        Route::get('/karyawan/tambah', [KaryawanController::class, 'create'])
+            ->name('karyawan.tambah');
+
+        Route::post('/karyawan/simpan', [KaryawanController::class, 'store'])
+            ->name('karyawan.simpan');
+
+        Route::get('/karyawan/{karyawan}/edit', [KaryawanController::class, 'edit'])
+            ->name('karyawan.edit');
+
+        Route::put('/karyawan/{karyawan}', [KaryawanController::class, 'update'])
+            ->name('karyawan.update');
+
+        Route::delete('/karyawan/{karyawan}', [KaryawanController::class, 'destroy'])
+            ->name('karyawan.destroy');
+
+        Route::get('/karyawan/{id}/pdf', [KaryawanController::class,'pdf'])
+            ->name('karyawan.pdf');
+
+    });
 
     /*
     |--------------------------------------------------------------------------
@@ -168,6 +162,8 @@ Route::middleware([
 
         Route::get('/karyawan/{id}/detail', [KaryawanController::class, 'detail'])
             ->name('karyawan.detail');
+
+
 
     });
 

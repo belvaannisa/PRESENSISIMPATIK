@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Karyawan;
 use Illuminate\Http\Request;
 use App\Models\Presensi;
-
+use Barryvdh\DomPDF\Facade\Pdf;
 class KaryawanController extends Controller
 {
     // 🔍 LIST + SEARCH + PAGINATION
@@ -142,13 +142,42 @@ class KaryawanController extends Controller
         $karyawan = Karyawan::findOrFail($id);
 
         $presensis = Presensi::where('karyawan_id', $id)
-            ->orderBy('tanggal', 'desc')
-            ->orderBy('jam_masuk', 'desc')
-            ->get();
+            ->orderBy('tanggal', 'asc')
+            ->orderBy('jam_masuk', 'asc')
+            ->paginate(10);
 
         return view('karyawan.detail', compact(
             'karyawan',
             'presensis'
         ));
+
+        $presensis = Presensi::where('karyawan_id', $id)
+        ->orderBy('tanggal', 'desc')
+        ->orderBy('jam_masuk', 'desc')
+        ->get()
+        ->map(function ($item) {
+
+            if (empty($item->jam_masuk)) {
+                $item->status = 'Tidak Hadir';
+            }
+
+            return $item;
+    });
     }
+
+    public function pdf($id)
+{
+    $karyawan = Karyawan::findOrFail($id);
+
+    $presensis = Presensi::where('karyawan_id',$id)
+        ->orderBy('tanggal','desc')
+        ->get();
+
+    $pdf = Pdf::loadView('karyawan.pdf', compact(
+        'karyawan',
+        'presensis'
+    ))->setPaper('a4','landscape');
+
+    return $pdf->download('detail-presensi-'.$karyawan->nama.'.pdf');
+}
 }

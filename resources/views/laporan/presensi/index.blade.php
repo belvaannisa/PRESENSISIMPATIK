@@ -56,16 +56,16 @@
             {{-- FILTER + DOWNLOAD --}}
             <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
 
-    {{-- FILTER --}}
-    <form method="GET" class="row g-2 flex-grow-1">
+     
+            <form method="GET" class="row g-2 flex-grow-1">
 
-        <div class="col-md-3 col-12">
-            <select name="mode" class="form-control" onchange="this.form.submit()">
-                <option value="harian" {{ $mode=='harian'?'selected':'' }}>Harian</option>
-                <option value="mingguan" {{ $mode=='mingguan'?'selected':'' }}>Mingguan</option>
-                <option value="bulanan" {{ $mode=='bulanan'?'selected':'' }}>Bulanan</option>
-            </select>
-        </div>
+                <div class="col-md-3 col-12">
+                    <select name="mode" class="form-control" onchange="this.form.submit()">
+                        <option value="harian" {{ $mode=='harian'?'selected':'' }}>Harian</option>
+                        <option value="mingguan" {{ $mode=='mingguan'?'selected':'' }}>Mingguan</option>
+                        <option value="bulanan" {{ $mode=='bulanan'?'selected':'' }}>Bulanan</option>
+                    </select>
+                </div>
 
         <div class="col-md-3 col-12" id="tanggalField">
             <input type="date" name="tanggal" value="{{ $tanggal ?? '' }}" class="form-control">

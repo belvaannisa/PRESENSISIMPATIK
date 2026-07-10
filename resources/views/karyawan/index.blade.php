@@ -111,7 +111,7 @@
                             <td>{{ $k->no_hp }}</td>
                             <td>{{ $k->alamat }}</td>
                             <td>{{ $k->email }}</td>
-                            <td>{{ $k->tanggal_masuk ? $k->tanggal_masuk->format('d-m-Y') : '-' }}</td>
+                            <td>{{ $k->tanggal_masuk }}</td>
 
                             <td class="text-center">
                                 @if($k->status_aktif)
@@ -169,12 +169,22 @@
                         </tr>
                         @endforelse
                         </tbody>
-                </table>
+                </table>                
             </div>
 
-            {{-- ================= MOBILE CARD ================= --}}
+            {{-- PAGINATION --}}
+            <div class="mt-3 text-center">
+                <div class="d-flex justify-content-center">
+                    {{ $karyawans->appends(['search' => request('search')])->links() }}
+                </div>
+
+            </div>
+
+           {{-- ================= MOBILE CARD ================= --}}
             <div class="karyawan-mobile">
+
                 @forelse ($karyawans as $k)
+
                 <div class="karyawan-card">
 
                     <h6>{{ $k->nama }}</h6>
@@ -191,8 +201,9 @@
                         {{ $k->tanggal_masuk ? $k->tanggal_masuk->format('d-m-Y') : '-' }}
                     </div>
 
-                   <div class="mt-2">
+                    <div class="mt-2">
                         <strong>Status:</strong><br>
+
                         @if($k->status_aktif)
                             <span class="badge bg-success">Aktif</span>
                         @else
@@ -202,47 +213,48 @@
 
                     <div class="mt-3">
 
-                    <a href="{{ route('karyawan.detail', $k->id) }}"
+                        {{-- Detail tampil semua role --}}
+                        <a href="{{ route('karyawan.detail', $k->id) }}"
                         class="btn btn-info btn-sm">
-                        <i class="bi bi-eye-fill"></i>
-                    </a>
-
-                    @if(auth()->user()->role != 'pimpinan')
-
-                        <a href="{{ route('karyawan.edit', $k->id) }}"
-                            class="btn btn-warning btn-sm">
-                            <i class="bi bi-pencil-square"></i>
+                            <i class="bi bi-eye-fill"></i>
                         </a>
 
-                        <form action="{{ route('karyawan.destroy', $k->id) }}"
-                            method="POST"
-                            class="d-inline">
+                        {{-- Edit & Hapus hanya admin/kepala personalia --}}
+                        @if(auth()->user()->role != 'pimpinan')
 
-                            @csrf
-                            @method('DELETE')
+                            <a href="{{ route('karyawan.edit', $k->id) }}"
+                            class="btn btn-warning btn-sm">
+                                <i class="bi bi-pencil-square"></i>
+                            </a>
 
-                            <button type="submit"
-                                class="btn btn-danger btn-sm">
-                                <i class="bi bi-trash-fill"></i>
-                            </button>
+                            <form action="{{ route('karyawan.destroy', $k->id) }}"
+                                method="POST"
+                                class="d-inline">
 
-                        </form>
+                                @csrf
+                                @method('DELETE')
 
-                    @endif
+                                <button type="submit"
+                                        class="btn btn-danger btn-sm"
+                                        onclick="return confirm('Yakin ingin menghapus data karyawan ini?')">
+                                    <i class="bi bi-trash-fill"></i>
+                                </button>
+
+                            </form>
+
+                        @endif
+
+                    </div>
 
                 </div>
+
                 @empty
-                <div class="text-center text-muted">
-                    Data karyawan Belum Tersedia
-                </div>
-                @endforelse
-            </div>
 
-            {{-- PAGINATION --}}
-            <div class="mt-3 text-center">
-                <div class="d-flex justify-content-center">
-                    {{ $karyawans->appends(['search' => request('search')])->links() }}
+                <div class="text-center text-muted">
+                    Data karyawan belum tersedia
                 </div>
+
+                @endforelse
 
             </div>
         </div>
