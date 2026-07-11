@@ -75,116 +75,117 @@ class PresensiController extends Controller
     }
 
    public function importLocal()
-{
-    $incomingPath = storage_path('app/fingerprint/incoming');
-    $processedPath = storage_path('app/fingerprint/processed');
+    {
+        $incomingPath = storage_path('app/fingerprint/incoming');
 
-    if (!is_dir($incomingPath)) {
+        $processedPath = storage_path('app/fingerprint/processed');
 
-        return back()->with(
-            'error',
-            'Folder incoming tidak ditemukan.'
-        );
+        $failedPath = storage_path('app/fingerprint/failed');
 
-    }
+        if (!is_dir($incomingPath)) {
 
-    $files = glob(
-        $incomingPath . '/*.{csv,xls,xlsx}',
-        GLOB_BRACE
-    );
-
-    if (empty($files)) {
-
-        return back()->with(
-            'error',
-            'Tidak ada file presensi.'
-        );
-
-    }
-
-    try {
-
-        foreach ($files as $file) {
-
-            DB::beginTransaction();
-
-            $rows = $this->bacaFile($file);
-
-            $this->prosesRows($rows);
-
-            DB::commit();
-
-            rename(
-                $file,
-                $processedPath . '/' . basename($file)
+            return back()->with(
+                'error',
+                'Folder incoming tidak ditemukan.'
             );
 
         }
 
-        $this->sinkronisasiPresensi();
-
-        $this->kirimDataPendingKeVps();
-
-        return back()->with(
-            'success',
-            'Auto Import berhasil.'
+        $files = glob(
+            $incomingPath.'/*.{csv,xls,xlsx}',
+            GLOB_BRACE
         );
 
-    } catch (\Throwable $e) {
+        if (empty($files)) {
 
-        DB::rollBack();
+            return back()->with(
+                'error',
+                'Tidak ada file presensi.'
+            );
 
-        Log::error($e);
-
-        return back()->with(
-            'error',
-            $e->getMessage()
-        );
-
-    }
-}
-
-    public function upload(Request $request)
-{
-    $request->validate([
-        'file' => 'required|mimes:csv,txt,xls,xlsx'
-    ]);
-
-    try {
+        }
 
         DB::beginTransaction();
 
-        $file = $request->file('file');
+        try {
 
-        $rows = $this->bacaFile(
-            $file->getRealPath(),
-            $file->getClientOriginalExtension()
-        );
+            foreach ($files as $file) {
 
-        $this->prosesRows($rows);
+                $rows = $this->bacaFile($file);
 
-        DB::commit();
+                $this->prosesRows($rows);
 
-        $this->sinkronisasiPresensi();
+                rename(
+                    $file,
+                    $processedPath.'/'.basename($file)
+                );
 
-        return back()->with(
-            'success',
-            'Import berhasil.'
-        );
+            }
 
-    } catch (\Throwable $e) {
+            $this->sinkronisasiPresensi();
 
-        DB::rollBack();
+            DB::commit();
 
-        Log::error($e);
+            $this->kirimDataPendingKeVps();
 
-        return back()->with(
-            'error',
-            $e->getMessage()
-        );
+            return back()->with(
+                'success',
+                'Auto Import berhasil.'
+            );
 
+        } catch (\Throwable $e) {
+
+            DB::rollBack();
+
+            Log::error($e->getMessage());
+
+            return back()->with(
+                'error',
+                $e->getMessage()
+            );
+
+        }
     }
-}
+
+    public function upload(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|mimes:csv,txt,xls,xlsx'
+        ]);
+
+        try {
+
+            $file = $request->file('file');
+
+            
+
+            $rows = $this->bacaFile(
+                $file->getRealPath(),
+                $file->getClientOriginalExtension()
+            );
+            $this->prosesRows($rows);
+
+            $this->sinkronisasiPresensi();
+
+            // nanti dipindah ke queue
+            //$this->kirimDataPendingKeVps();
+
+            return back()->with(
+                'success',
+                'Import berhasil.'
+            );
+
+        } catch (\Throwable $e) {
+
+            Log::error($e);
+
+            return back()->with(
+                'error',
+                $e->getMessage()
+            );
+
+        }
+    }
 
     private function validasiBaris(array $row, int $index)
     {
@@ -351,26 +352,9 @@ class PresensiController extends Controller
             // Batch Insert setiap 1000 data
             if (count($insertData) >= 1000) {
 
-               PresensiLog::upsert(
+                DB::table('presensi_logs')
+                    ->insertOrIgnore($insertData);
 
-                $insertData,
-
-                ['record_hash'],
-
-                [
-                    'pin',
-                    'nama',
-                    'tanggal',
-                    'jam',
-                    'verify_code',
-                    'karyawan_id',
-                    'status_sinkron',
-                    'status_server',
-                    'catatan',
-                    'updated_at'
-                ]
-
-            );
                 $insertData = [];
             }
         }
@@ -379,26 +363,8 @@ class PresensiController extends Controller
         
         if (!empty($insertData)) {
 
-            PresensiLog::upsert(
-
-            $insertData,
-
-            ['record_hash'],
-
-            [
-                'pin',
-                'nama',
-                'tanggal',
-                'jam',
-                'verify_code',
-                'karyawan_id',
-                'status_sinkron',
-                'status_server',
-                'catatan',
-                'updated_at'
-            ]
-
-        );
+            DB::table('presensi_logs')
+                ->insertOrIgnore($insertData);
 
         }
     }
@@ -427,27 +393,18 @@ class PresensiController extends Controller
             'Tepat Waktu';
     }
 
-    private function prosesLogKePresensi($karyawan, $logs)
-    {
+private function prosesLogKePresensi($karyawan, $logs)
+{
+    // Urutkan scan berdasarkan jam
     $logs = $logs->sortBy('jam')->values();
 
     $scanMasuk = $logs->first();
 
-    $scanKeluar = null;
+    $scanKeluar = $logs->count() > 1
+        ? $logs->last()
+        : null;
 
-    foreach ($logs as $log) {
-
-        $selisih = strtotime($log->jam) - strtotime($scanMasuk->jam);
-
-        // Scan dianggap jam keluar jika minimal selisih 5 menit
-        if ($selisih >= 300) {
-
-            $scanKeluar = $log;
-
-        }
-
-    }
-
+    // Cari / Buat presensi
     $presensi = Presensi::firstOrNew([
         'karyawan_id' => $karyawan->id,
         'tanggal'     => $scanMasuk->tanggal,
@@ -463,24 +420,30 @@ class PresensiController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | Pegawai Terbatas / Tidak Terbatas
+    | Tipe Pegawai
     |--------------------------------------------------------------------------
     */
 
     $tidakTerbatas =
-        $karyawan->tipe_jam_keluar ==
-        config('jabatan.tidak_terbatas');
+        $karyawan->tipe_jam_keluar == config('jabatan.tidak_terbatas');
+
+    /*
+    |--------------------------------------------------------------------------
+    | Jam Keluar
+    |--------------------------------------------------------------------------
+    */
 
     if ($scanKeluar) {
 
-    $presensi->jam_keluar = $scanKeluar->jam;
+        // Ada scan kedua
+        $presensi->jam_keluar = $scanKeluar->jam;
 
     } else {
 
+        // Tidak ada scan kedua
         if ($tidakTerbatas) {
 
-            $presensi->jam_keluar =
-                config('jabatan.jam_keluar_default');
+            $presensi->jam_keluar = config('jabatan.jam_keluar_default');
 
         } else {
 
@@ -503,6 +466,8 @@ class PresensiController extends Controller
     /*
     |--------------------------------------------------------------------------
     | Keterangan
+    |--------------------------------------------------------------------------
+    | Selama ada scan berarti tetap Hadir.
     |--------------------------------------------------------------------------
     */
 
@@ -535,9 +500,7 @@ private function sinkronisasiPresensi()
     try {
 
         $groupLogs = $logs->groupBy(function ($item) {
-
             return $item->karyawan_id . '_' . $item->tanggal;
-
         });
 
         foreach ($groupLogs as $group) {
@@ -560,9 +523,7 @@ private function sinkronisasiPresensi()
             'id',
             $logs->pluck('id')
         )->update([
-
             'catatan' => 'Presensi berhasil dibuat'
-
         ]);
 
         DB::commit();
@@ -571,7 +532,7 @@ private function sinkronisasiPresensi()
 
         DB::rollBack();
 
-        Log::error($e);
+        Log::error($e->getMessage());
 
     }
 }

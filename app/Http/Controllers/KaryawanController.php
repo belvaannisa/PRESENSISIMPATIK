@@ -26,31 +26,74 @@ class KaryawanController extends Controller
     }
 
     // 🔍 LIST + SEARCH + PAGINATION
-    public function index(Request $request)
-    {
+   public function index(Request $request)
+{
     $search = $request->search;
 
-    $karyawans = Karyawan::when($search, function ($query) use ($search) {
+    // Daftar jabatan Staff
+    $staffJabatan = [
+        'KEPALA CABANG',
+        'HAF',
+        'KEPALA GUDANG & KEPALA PERSONALIA',
+        'KASIR',
+        'KOORD AR',
+        'ADM AR',
+        'KORWIL BJB',
+        'COLLECTOR',
+        'KANVAS DRIVER',
+        'DRIVER GUDANG',
+        'HELPER',
+        'OFFICE BOY CABANG'
+    ];
 
+    // Daftar jabatan Non Staff
+    $nonStaffJabatan = [
+        'SPV SR BJB',
+        'SPV SF BERLIAN',
+        'SR BJB',
+        'SF BERLIAN'
+    ];
+
+    // =========================
+    // Data Staff
+    // =========================
+    $staff = Karyawan::whereIn('jabatan', $staffJabatan)
+        ->when($search, function ($query) use ($search) {
             $query->where(function ($q) use ($search) {
-
                 $q->where('nama', 'like', "%{$search}%")
                   ->orWhere('jabatan', 'like', "%{$search}%");
-
             });
-
         })
-        ->orderBy('id', 'asc') 
-        ->paginate(10);
+        ->orderBy('id', 'asc')
+        ->paginate(10, ['*'], 'staff_page');
 
-    $no = ($karyawans->currentPage() - 1) * $karyawans->perPage() + 1;
+    // =========================
+    // Data Non Staff
+    // =========================
+    $nonStaff = Karyawan::whereIn('jabatan', $nonStaffJabatan)
+        ->when($search, function ($query) use ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('nama', 'like', "%{$search}%")
+                  ->orWhere('jabatan', 'like', "%{$search}%");
+            });
+        })
+        ->orderBy('id', 'asc')
+        ->paginate(10, ['*'], 'nonstaff_page');
+
+    // Nomor urut Staff
+    $noStaff = ($staff->currentPage() - 1) * $staff->perPage() + 1;
+
+    // Nomor urut Non Staff
+    $noNonStaff = ($nonStaff->currentPage() - 1) * $nonStaff->perPage() + 1;
 
     return view('karyawan.index', compact(
-        'karyawans',
+        'staff',
+        'nonStaff',
         'search',
-        'no'
+        'noStaff',
+        'noNonStaff'
     ));
-    }
+}
 
     // 📝 FORM CREATE
     public function create()

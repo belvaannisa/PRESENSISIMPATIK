@@ -73,184 +73,443 @@
 
         <div class="card-body">
 
-            {{-- SEARCH --}}
-            <div class="d-flex justify-content-end mb-3">
-                <form action="{{ route('karyawan.index') }}" method="GET" class="d-flex">
-                    <input type="text" 
-                           name="search" 
-                           class="form-control me-2" 
-                           placeholder="Cari karyawan..." 
-                           value="{{ request('search') }}">
-                    <button class="btn btn-outline-secondary">Cari</button>
-                </form>
-            </div>
+    {{-- SEARCH --}}
+    <div class="d-flex justify-content-end mb-3">
+        <form action="{{ route('karyawan.index') }}" method="GET" class="d-flex">
+            <input type="text"
+                   name="search"
+                   class="form-control me-2"
+                   placeholder="Cari karyawan..."
+                   value="{{ request('search') }}">
 
-            {{-- ================= DESKTOP TABLE ================= --}}
-            <div class="table-responsive">
-                <table class="table table-bordered table-striped table-hover">
-                    <thead class="text-center text-white" style="background-color: #FA713F;">
-                        <tr>
-                            <th>No</th>
-                            <th>Nama</th>
-                            <th>Jabatan</th>
-                            <th>No. HP</th>
-                            <th>Tanggal Masuk</th>
-                            <th>Status</th>
-                            <th width="180">Aksi</th>
-  
-                        </tr>
-                    </thead>
-                   <tbody>
-                        @forelse ($karyawans as $k)
-                        <tr>
-                            <td class="text-center">{{ $no++ }}</td>
-                            <td>{{ $k->nama }}</td>
-                            <td>{{ $k->jabatan }}</td>
-                            <td>{{ $k->no_hp }}</td>
-                            <td>{{ $k->tanggal_masuk }}</td>
+            <button class="btn btn-outline-secondary">
+                Cari
+            </button>
+        </form>
+    </div>
 
-                            <td class="text-center">
-                                @if($k->status_aktif)
-                                    <span class="badge bg-success">Aktif</span>
-                                @else
-                                    <span class="badge bg-secondary">Nonaktif</span>
-                                @endif
-                            </td>
+    {{-- ================= STAFF ================= --}}
+    <h5 class="fw-bold mb-3">
+        Staff
+    </h5>
 
-                           <td class="text-center">
+    {{-- ================= DESKTOP TABLE STAFF ================= --}}
+    <div class="table-responsive">
 
-                                {{-- Detail tampil untuk semua role --}}
-                                <a href="{{ route('karyawan.detail', $k->id) }}"
-                                    class="btn btn-info btn-sm"
-                                    title="Detail">
-                                    <i class="bi bi-eye-fill"></i>
-                                </a>
+        <table class="table table-bordered table-striped table-hover">
 
-                                {{-- Edit & Hapus hanya untuk Kepala Personalia --}}
-                                @if(auth()->user()->role != 'pimpinan')
+            <thead class="text-center text-white"
+                   style="background-color:#FA713F;">
 
-                                    <a href="{{ route('karyawan.edit', $k->id) }}"
-                                        class="btn btn-warning btn-sm"
-                                        title="Edit">
-                                        <i class="bi bi-pencil-square"></i>
-                                    </a>
+                <tr>
+                    <th>No</th>
+                    <th>Nama</th>
+                    <th>Jabatan</th>
+                    <th>No. HP</th>
+                    <th>Tanggal Masuk</th>
+                    <th>Status</th>
+                    <th width="180">Aksi</th>
+                </tr>
 
-                                    <form action="{{ route('karyawan.destroy', $k->id) }}"
-                                        method="POST"
-                                        class="d-inline">
+            </thead>
 
-                                        @csrf
-                                        @method('DELETE')
+            <tbody>
 
-                                        <button type="submit"
-                                            class="btn btn-danger btn-sm"
-                                            title="Hapus"
-                                            onclick="return confirm('Yakin ingin menghapus data karyawan ini?')">
+            @forelse($staff as $k)
 
-                                            <i class="bi bi-trash-fill"></i>
+            <tr>
 
-                                        </button>
+                <td class="text-center">
+                    {{ $noStaff++ }}
+                </td>
 
-                                    </form>
+                <td>{{ $k->nama }}</td>
 
-                                @endif
+                <td>{{ $k->jabatan }}</td>
 
-                            </td>
-                        </tr>
-                        @empty
-                        <tr>
-                            <td colspan="9">
-                                Data Karyawan Belum Tersedia
-                            </td>
-                        </tr>
-                        @endforelse
-                        </tbody>
-                </table>                
-            </div>
+                <td>{{ $k->no_hp }}</td>
 
-            {{-- PAGINATION --}}
-            <div class="mt-3 text-center">
-                <div class="d-flex justify-content-center">
-                    {{ $karyawans->appends(['search' => request('search')])->links() }}
-                </div>
+                <td class="text-center">
+                    {{ $k->tanggal_masuk ? \Carbon\Carbon::parse($k->tanggal_masuk)->format('d-m-Y') : '' }}
+                </td>
 
-            </div>
+                <td class="text-center">
 
-           {{-- ================= MOBILE CARD ================= --}}
-            <div class="karyawan-mobile">
+                    @if($k->status_aktif)
 
-                @forelse ($karyawans as $k)
+                        <span class="badge bg-success">
+                            Aktif
+                        </span>
 
-                <div class="karyawan-card">
+                    @else
 
-                    <h6>{{ $k->nama }}</h6>
-                    <small>{{ $k->jabatan }}</small>
+                        <span class="badge bg-secondary">
+                            Nonaktif
+                        </span>
 
-                    <div class="mt-2">
-                        📞 {{ $k->no_hp }} <br>
-                    </div>
+                    @endif
 
-                    <div class="mt-2">
-                        <strong>Tanggal Masuk:</strong><br>
-                        {{ $k->tanggal_masuk ? $k->tanggal_masuk->format('d-m-Y') : '-' }}
-                    </div>
+                </td>
 
-                    <div class="mt-2">
-                        <strong>Status:</strong><br>
+                <td class="text-center">
 
-                        @if($k->status_aktif)
-                            <span class="badge bg-success">Aktif</span>
-                        @else
-                            <span class="badge bg-secondary">Nonaktif</span>
-                        @endif
-                    </div>
+                    <a href="{{ route('karyawan.detail',$k->id) }}"
+                       class="btn btn-info btn-sm">
 
-                    <div class="mt-3">
+                        <i class="bi bi-eye-fill"></i>
 
-                        {{-- Detail tampil semua role --}}
-                        <a href="{{ route('karyawan.detail', $k->id) }}"
-                        class="btn btn-info btn-sm">
-                            <i class="bi bi-eye-fill"></i>
+                    </a>
+
+                    @if(auth()->user()->role != 'pimpinan')
+
+                        <a href="{{ route('karyawan.edit',$k->id) }}"
+                           class="btn btn-warning btn-sm">
+
+                            <i class="bi bi-pencil-square"></i>
+
                         </a>
 
-                        {{-- Edit & Hapus hanya admin/kepala personalia --}}
-                        @if(auth()->user()->role != 'pimpinan')
+                        <form action="{{ route('karyawan.destroy',$k->id) }}"
+                              method="POST"
+                              class="d-inline">
 
-                            <a href="{{ route('karyawan.edit', $k->id) }}"
-                            class="btn btn-warning btn-sm">
-                                <i class="bi bi-pencil-square"></i>
-                            </a>
+                            @csrf
+                            @method('DELETE')
 
-                            <form action="{{ route('karyawan.destroy', $k->id) }}"
-                                method="POST"
-                                class="d-inline">
+                            <button type="submit"
+                                    class="btn btn-danger btn-sm"
+                                    onclick="return confirm('Yakin ingin menghapus data karyawan ini?')">
 
-                                @csrf
-                                @method('DELETE')
+                                <i class="bi bi-trash-fill"></i>
 
-                                <button type="submit"
-                                        class="btn btn-danger btn-sm"
-                                        onclick="return confirm('Yakin ingin menghapus data karyawan ini?')">
-                                    <i class="bi bi-trash-fill"></i>
-                                </button>
+                            </button>
 
-                            </form>
+                        </form>
 
-                        @endif
+                    @endif
 
-                    </div>
+                </td>
 
-                </div>
+            </tr>
 
-                @empty
+            @empty
 
-                <div class="text-center text-muted">
-                    Data karyawan belum tersedia
-                </div>
+            <tr>
 
-                @endforelse
+                <td colspan="7" class="text-center">
+                    Data Staff belum tersedia.
+                </td>
 
-            </div>
+            </tr>
+
+            @endforelse
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+    {{-- PAGINATION STAFF --}}
+    <div class="d-flex justify-content-center mb-5">
+        {{ $staff->appends(request()->except('staff_page'))->links() }}
+    </div>
+
+        {{-- ================= NON STAFF ================= --}}
+    <h5 class="fw-bold mb-3 mt-5">
+        Non Staff
+    </h5>
+
+    {{-- ================= DESKTOP TABLE NON STAFF ================= --}}
+    <div class="table-responsive">
+
+        <table class="table table-bordered table-striped table-hover">
+
+            <thead class="text-center text-white"
+                   style="background-color:#FA713F;">
+
+                <tr>
+                    <th>No</th>
+                    <th>Nama</th>
+                    <th>Jabatan</th>
+                    <th>No. HP</th>
+                    <th>Tanggal Masuk</th>
+                    <th>Status</th>
+                    <th width="180">Aksi</th>
+                </tr>
+
+            </thead>
+
+            <tbody>
+
+            @forelse($nonStaff as $k)
+
+            <tr>
+
+                <td class="text-center">
+                    {{ $noNonStaff++ }}
+                </td>
+
+                <td>{{ $k->nama }}</td>
+
+                <td>{{ $k->jabatan }}</td>
+
+                <td>{{ $k->no_hp }}</td>
+
+                <td class="text-center">
+                    {{ $k->tanggal_masuk ? \Carbon\Carbon::parse($k->tanggal_masuk)->format('d-m-Y') : '' }}
+                </td>
+
+                <td class="text-center">
+
+                    @if($k->status_aktif)
+
+                        <span class="badge bg-success">
+                            Aktif
+                        </span>
+
+                    @else
+
+                        <span class="badge bg-secondary">
+                            Nonaktif
+                        </span>
+
+                    @endif
+
+                </td>
+
+                <td class="text-center">
+
+                    {{-- Detail --}}
+                    <a href="{{ route('karyawan.detail', $k->id) }}"
+                       class="btn btn-info btn-sm">
+                        <i class="bi bi-eye-fill"></i>
+                    </a>
+
+                    {{-- Edit & Hapus --}}
+                    @if(auth()->user()->role != 'pimpinan')
+
+                        <a href="{{ route('karyawan.edit', $k->id) }}"
+                           class="btn btn-warning btn-sm">
+                            <i class="bi bi-pencil-square"></i>
+                        </a>
+
+                        <form action="{{ route('karyawan.destroy', $k->id) }}"
+                              method="POST"
+                              class="d-inline">
+
+                            @csrf
+                            @method('DELETE')
+
+                            <button type="submit"
+                                    class="btn btn-danger btn-sm"
+                                    onclick="return confirm('Yakin ingin menghapus data karyawan ini?')">
+
+                                <i class="bi bi-trash-fill"></i>
+
+                            </button>
+
+                        </form>
+
+                    @endif
+
+                </td>
+
+            </tr>
+
+            @empty
+
+            <tr>
+
+                <td colspan="7" class="text-center">
+                    Data Non Staff belum tersedia.
+                </td>
+
+            </tr>
+
+            @endforelse
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+    {{-- PAGINATION NON STAFF --}}
+    <div class="d-flex justify-content-center mb-4">
+        {{ $nonStaff->appends(request()->except('nonstaff_page'))->links() }}
+    </div>
+
+           {{-- ================= MOBILE ================= --}}
+<div class="karyawan-mobile">
+
+    {{-- STAFF --}}
+    <h5 class="fw-bold mb-3">
+        Staff
+    </h5>
+
+    @forelse ($staff as $k)
+
+    <div class="karyawan-card">
+
+        <h6>{{ $k->nama }}</h6>
+        <small>{{ $k->jabatan }}</small>
+
+        <div class="mt-2">
+            📞 {{ $k->no_hp }}
+        </div>
+
+        <div class="mt-2">
+            <strong>Tanggal Masuk :</strong><br>
+            {{ $k->tanggal_masuk ? \Carbon\Carbon::parse($k->tanggal_masuk)->format('d-m-Y') : '' }}
+        </div>
+
+        <div class="mt-2">
+
+            <strong>Status :</strong><br>
+
+            @if($k->status_aktif)
+                <span class="badge bg-success">Aktif</span>
+            @else
+                <span class="badge bg-secondary">Nonaktif</span>
+            @endif
+
+        </div>
+
+        <div class="mt-3">
+
+            <a href="{{ route('karyawan.detail',$k->id) }}"
+               class="btn btn-info btn-sm">
+                <i class="bi bi-eye-fill"></i>
+            </a>
+
+            @if(auth()->user()->role != 'pimpinan')
+
+                <a href="{{ route('karyawan.edit',$k->id) }}"
+                   class="btn btn-warning btn-sm">
+                    <i class="bi bi-pencil-square"></i>
+                </a>
+
+                <form action="{{ route('karyawan.destroy',$k->id) }}"
+                      method="POST"
+                      class="d-inline">
+
+                    @csrf
+                    @method('DELETE')
+
+                    <button type="submit"
+                            class="btn btn-danger btn-sm"
+                            onclick="return confirm('Yakin ingin menghapus data karyawan ini?')">
+
+                        <i class="bi bi-trash-fill"></i>
+
+                    </button>
+
+                </form>
+
+            @endif
+
+        </div>
+
+    </div>
+
+    @empty
+
+    <div class="text-center text-muted mb-4">
+        Data Staff belum tersedia.
+    </div>
+
+    @endforelse
+
+    {{-- Pagination Staff --}}
+    <div class="d-flex justify-content-center mb-5">
+        {{ $staff->appends(request()->except('staff_page'))->links() }}
+    </div>
+
+    {{-- NON STAFF --}}
+    <h5 class="fw-bold mb-3">
+        Non Staff
+    </h5>
+
+    @forelse ($nonStaff as $k)
+
+    <div class="karyawan-card">
+
+        <h6>{{ $k->nama }}</h6>
+        <small>{{ $k->jabatan }}</small>
+
+        <div class="mt-2">
+            📞 {{ $k->no_hp }}
+        </div>
+
+        <div class="mt-2">
+            <strong>Tanggal Masuk :</strong><br>
+            {{ $k->tanggal_masuk ? \Carbon\Carbon::parse($k->tanggal_masuk)->format('d-m-Y') : '' }}
+        </div>
+
+        <div class="mt-2">
+
+            <strong>Status :</strong><br>
+
+            @if($k->status_aktif)
+                <span class="badge bg-success">Aktif</span>
+            @else
+                <span class="badge bg-secondary">Nonaktif</span>
+            @endif
+
+        </div>
+
+        <div class="mt-3">
+
+            <a href="{{ route('karyawan.detail',$k->id) }}"
+               class="btn btn-info btn-sm">
+                <i class="bi bi-eye-fill"></i>
+            </a>
+
+            @if(auth()->user()->role != 'pimpinan')
+
+                <a href="{{ route('karyawan.edit',$k->id) }}"
+                   class="btn btn-warning btn-sm">
+                    <i class="bi bi-pencil-square"></i>
+                </a>
+
+                <form action="{{ route('karyawan.destroy',$k->id) }}"
+                      method="POST"
+                      class="d-inline">
+
+                    @csrf
+                    @method('DELETE')
+
+                    <button type="submit"
+                            class="btn btn-danger btn-sm"
+                            onclick="return confirm('Yakin ingin menghapus data karyawan ini?')">
+
+                        <i class="bi bi-trash-fill"></i>
+
+                    </button>
+
+                </form>
+
+            @endif
+
+        </div>
+
+    </div>
+
+    @empty
+
+    <div class="text-center text-muted">
+        Data Non Staff belum tersedia.
+    </div>
+
+    @endforelse
+
+    {{-- Pagination Non Staff --}}
+    <div class="d-flex justify-content-center">
+        {{ $nonStaff->appends(request()->except('nonstaff_page'))->links() }}
+    </div>
+
+</div>
         </div>
     </div>
 
