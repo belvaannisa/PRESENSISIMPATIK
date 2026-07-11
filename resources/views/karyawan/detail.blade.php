@@ -155,7 +155,7 @@
 
                     <tr>
                         <td colspan="6" class="text-center text-muted">
-                            Belum ada data presensi.
+                            Belum Ada Data Presensi.
                         </td>
                     </tr>
 
@@ -229,7 +229,7 @@
                 @empty
 
                 <div class="text-center text-muted">
-                    Belum ada data presensi.
+                    Belum Ada Data Presensi.
                 </div>
 
                 @endforelse

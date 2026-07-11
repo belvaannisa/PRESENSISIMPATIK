@@ -29,21 +29,22 @@ class Karyawan extends Model
     ];
 
     public static $jabatanList = [
-        'Kepala Cabang',
-        'Kepala Keuangan',
-        'Kepala Gudang',
-        'Kepala Personalia',
-        'Kepala Account Receivable',
-        'Kepala Marketing',
-        'Admin Collection',
-        'Kasir dan Fakturisasi',
-        'Supervisor',
-        'Surveyor',
-        'Sales',
-        'Pengiriman',
-        'Helper Pengiriman',
-        'Driver',
-        'Office Boy'
+        'KEPALA CABANG',
+        'HAF',
+        'KEPALA GUDANG & KEPALA PERSONALIA', 
+        'KASIR',
+        'KOORD AR',
+        'ADM AR',
+        'KORWIL BJB',
+        'COLLECTOR',
+        'KANVAS DRIVER',
+        'DRIVER GUDANG',
+        'HELPER',
+        'OFFICE BOY CABANG',
+        'SPV SR BJB',
+        'SPV SF BERLIAN',
+        'SR BJB',
+        'SF BERLIAN'
     ];
 
     // RELASI KE PRESENSI
