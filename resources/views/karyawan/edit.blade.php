@@ -85,6 +85,34 @@
                     </select>
                 </div>
 
+                {{-- TANGGAL MASUK --}}
+                <div class="mb-3">
+                    <label class="form-label">Tanggal Masuk</label>
+                    <input type="date"
+                        name="tanggal_masuk"
+                        class="form-control"
+                        value="{{ old('tanggal_masuk', $karyawan->tanggal_masuk) }}">
+                </div>
+
+                {{-- STATUS AKTIF --}}
+                <div class="mb-4">
+                    <label class="form-label">Status Aktif</label>
+
+                    <select name="status_aktif" class="form-control">
+
+                        <option value="1"
+                            {{ old('status_aktif', $karyawan->status_aktif) == 1 ? 'selected' : '' }}>
+                            Aktif
+                        </option>
+
+                        <option value="0"
+                            {{ old('status_aktif', $karyawan->status_aktif) == 0 ? 'selected' : '' }}>
+                            Tidak Aktif
+                        </option>
+
+                    </select>
+                </div>
+
                 {{-- BUTTON --}}
                 <div class="d-flex justify-content-between">
                     <a href="{{ route('karyawan.index') }}" class="btn btn-secondary">

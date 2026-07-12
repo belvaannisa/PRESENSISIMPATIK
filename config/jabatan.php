@@ -8,6 +8,8 @@ return [
     
     'jam_masuk_default' => '08:00:00',
 
+    'batas_scan_tunggal' => '12:30:00',
+
     'jam_keluar_default' => '17:00:00',
 
     'jabatan_tidak_terbatas' => [
