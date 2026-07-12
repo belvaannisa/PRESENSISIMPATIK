@@ -25,7 +25,7 @@ class PresensiApiController extends Controller
         trim($jam)
     );
 }
- public function upload(Request $request)
+public function upload(Request $request)
 {
     $request->validate([
         'absen_list'           => 'required|array',
@@ -35,38 +35,30 @@ class PresensiApiController extends Controller
         'absen_list.*.jam'     => 'required|string'
     ]);
 
-    DB::beginTransaction();
-
     try {
         $dataAbsen = $request->input('absen_list');
-        $suksesCount = 0;
-        $duplicateCount = 0;
-        $responseLogIds = [];
-        
-        // Simpan kombinasi unik untuk dikirim ke Job nanti
-        $jobsToDispatch = []; 
+        $insertData = [];
+        $jobsToDispatch = [];
 
         foreach ($dataAbsen as $item) {
             $pin = trim($item['pin']);
             $nama = trim($item['nama']);
             
+            // Konversi Tanggal
             try {
                 $tanggal = \Carbon\Carbon::createFromFormat('d/m/Y', $item['tanggal'])->format('Y-m-d');
             } catch (\Exception $e) {
                 $tanggal = \Carbon\Carbon::parse($item['tanggal'])->format('Y-m-d');
             }
             
+            // Konversi Jam
             $jam = \Carbon\Carbon::parse($item['jam'])->format('H:i:s');
-            $recordHash = $this->generateRecordHash($pin, $tanggal, $jam);
             
-            $existing = PresensiLog::where('record_hash', $recordHash)->first();
+            // Generate Hash
+            $recordHash = $this->generateRecordHash($pin, $tanggal, $jam);
 
-            if ($existing) {
-                $duplicateCount++;
-                continue; 
-            }
-
-            $log = PresensiLog::create([
+            // 1. Siapkan Array untuk Bulk Insert
+            $insertData[] = [
                 'record_hash'    => $recordHash,
                 'pin'            => $pin,
                 'nama'           => $nama,
@@ -75,41 +67,48 @@ class PresensiApiController extends Controller
                 'verify_code'    => 'API',
                 'status_sinkron' => 'pending',
                 'status_server'  => 'success',
-                'catatan'        => 'Menunggu sinkronisasi'
-            ]);
+                'catatan'        => 'Menunggu sinkronisasi',
+                'created_at'     => now(),
+                'updated_at'     => now(),
+            ];
 
-            // Kumpulkan Job unik
+            // 2. Kumpulkan kombinasi Job yang unik
             $jobKey = $pin . '_' . $tanggal;
             if (!isset($jobsToDispatch[$jobKey])) {
-                $jobsToDispatch[$jobKey] = ['pin' => $pin, 'tanggal' => $tanggal];
+                $jobsToDispatch[$jobKey] = [
+                    'pin' => $pin,
+                    'tanggal' => $tanggal
+                ];
             }
-
-            $suksesCount++;
-            $responseLogIds[] = $log->id;
         }
 
-        DB::commit();
+        // 3. Eksekusi Bulk Insert / Upsert (Hanya butuh sekian milidetik)
+        // Array di-chunk per 500 data agar MySQL tidak kewalahan
+        $chunks = array_chunk($insertData, 500);
+        foreach ($chunks as $chunk) {
+            PresensiLog::upsert(
+                $chunk,
+                ['record_hash'], // Acuan data unik (cegah duplikat otomatis)
+                ['updated_at']   // Jika duplikat, cukup update waktunya saja
+            );
+        }
 
-        // Dispatch Job SETELAH commit (agar lebih aman)
+        // 4. Masukkan ke Antrean Queue
         foreach ($jobsToDispatch as $job) {
             SinkronisasiPresensiJob::dispatch($job['pin'], $job['tanggal']);
         }
 
         return response()->json([
-            'success'   => true,
-            'message'   => "Proses Bulk Selesai. $suksesCount disimpan, $duplicateCount duplikat.",
-            'inserted'  => $suksesCount,
-            'duplicate' => $duplicateCount,
-            'log_ids'   => $responseLogIds
+            'success'    => true,
+            'message'    => "Proses Bulk Selesai. Data berhasil dimasukkan ke antrean.",
+            'total_data' => count($insertData)
         ], 200);
 
     } catch (\Throwable $e) {
-        DB::rollBack();
         return response()->json([
             'success' => false,
             'message' => 'Gagal memproses bulk upload server: ' . $e->getMessage()
         ], 500);
     }
 }
-
 }
