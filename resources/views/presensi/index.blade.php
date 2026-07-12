@@ -1,6 +1,22 @@
 @extends('layouts.app')
 
 @section('content')
+<style>
+
+.table-warning{
+
+    background-color:#FFF3CD !important;
+
+}
+
+.table-warning:hover{
+
+    background-color:#FFE69C !important;
+
+}
+
+</style>
+
 <div class="container mt-4">
 
     <div class="card shadow-sm border-0">
@@ -42,6 +58,11 @@
                 </form>
             </div>
 
+            <div class="alert alert-warning py-2 mb-3">
+                <strong>Keterangan :</strong>
+                Baris Yang Berwarna Kuning Menandakan Data Presensi Pernah Diedit.
+            </div>
+
             {{-- ================= DESKTOP TABLE ================= --}}
             <div class="table-responsive d-none d-lg-block">
                 <table class="table table-bordered table-striped table-hover align-middle">
@@ -54,13 +75,14 @@
                             <th>Keluar</th>
                             <th>Status</th>
                             <th>Keterangan</th>
+                            <th>Log Edit</th>
                             <th width="180">Aksi</th>
                         </tr>
                     </thead>
 
                     <tbody>
                         @forelse ($presensis as $p)
-                        <tr>
+                        <tr class="{{ $p->waktu_edit ? 'table-warning' : '' }}">
 
                             <td class="text-center">{{ $no++ }}</td>
 
@@ -75,15 +97,33 @@
                             <td class="text-center">{{ $p->jam_keluar ?? '-' }}</td>
 
                             <td class="text-center">
+
                                 @if($p->status == 'Terlambat')
-                                    <span class="badge bg-danger">
-                                        Terlambat
-                                    </span>
+
+                                <span class="badge bg-danger">
+                                    Terlambat
+                                </span>
+
                                 @else
-                                    <span class="badge bg-success">
-                                        Tepat Waktu
-                                    </span>
+
+                                <span class="badge bg-success">
+                                    Tepat Waktu
+                                </span>
+
                                 @endif
+
+                                @if($p->waktu_edit)
+
+                                <br>
+
+                                <small class="text-warning fw-bold">
+
+                                ✏ Pernah Diedit
+
+                                </small>
+
+                                @endif
+
                             </td>
 
                             <td class="text-center">
@@ -92,6 +132,32 @@
                                 </span>
                             </td>
 
+
+                            <td class="text-center">
+
+                                @if($p->editor)
+
+                                <strong>
+
+                                {{ $p->editor->name }}
+
+                                </strong>
+
+                                <br>
+
+                                <small class="text-muted">
+
+                                {{ \Carbon\Carbon::parse($p->waktu_edit)->format('d-m-Y H:i') }}
+
+                                </small>
+
+                                @else
+
+                                -
+
+                                @endif
+
+                                </td>
                             <td class="text-center">
 
                                 <a href="{{ route('presensi.edit', $p->id) }}"
@@ -119,7 +185,7 @@
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="8" class="text-center text-muted">
+                            <td colspan="9" class="text-center text-muted">
                                 Data Presensi Belum Tersedia
                             </td>
                         </tr>
@@ -172,6 +238,20 @@
                                 <span class="badge bg-success">
                                     Tepat Waktu
                                 </span>
+                            @endif
+
+                            @if($p->waktu_edit)
+
+                            <div class="mt-2">
+
+                            <span class="badge bg-warning text-dark">
+
+                            ✏ Pernah Diedit
+
+                            </span>
+
+                            </div>
+
                             @endif
                         </div>
 

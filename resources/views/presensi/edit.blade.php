@@ -30,6 +30,18 @@
                            value="{{ old('jam_masuk', $presensi->jam_masuk) }}">
                 </div>
 
+                <div class="mb-3">
+                    <label class="form-label">
+                        Jam Keluar
+                    </label>
+
+                    <input
+                        type="time"
+                        name="jam_keluar"
+                        class="form-control"
+                        value="{{ old('jam_keluar', $presensi->jam_keluar) }}">
+                </div>
+
                 {{-- STATUS --}}
                     <div class="mb-3">
                         <label class="form-label">Status</label>
@@ -39,17 +51,7 @@
                             readonly>
                     </div>
 
-                {{-- Keterangan --}}
-                <div class="mb-3">
-                    <label class="form-label">
-                        Keterangan
-                    </label>
-
-                    <textarea name="keterangan"
-                              class="form-control"
-                              rows="3">{{ old('keterangan', $presensi->keterangan) }}</textarea>
-                </div>
-
+               
                 <div class="d-flex justify-content-between">
 
                     <a href="{{ route('presensi.index') }}"

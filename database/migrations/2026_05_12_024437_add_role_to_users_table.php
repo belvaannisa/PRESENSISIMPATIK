@@ -13,7 +13,8 @@ return new class extends Migration
             $table->enum('role', [
                 'admin',
                 'kepala_personalia',
-                'pimpinan'
+                'pimpinan',
+                'haf'
             ])->default('pimpinan');
 
         });
