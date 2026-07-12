@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
 
+
 class SinkronisasiPresensiJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
@@ -38,9 +39,7 @@ class SinkronisasiPresensiJob implements ShouldQueue
      */
    public $tries = 5;
 
-public $backoff = 10;
 
-<<<<<<< HEAD
     /**
      * Delay retry (detik)
      */
@@ -51,9 +50,7 @@ public $backoff = 10;
      * Timeout job (detik)
      */
     public $timeout = 120;
-=======
-public $timeout = 120; 
->>>>>>> 71de79433b8e2935c82992c92ca5494fc34238db
+
 
 
     /**
