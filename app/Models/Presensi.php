@@ -12,14 +12,14 @@ class Presensi extends Model
     protected $table = 'presensis';
 
     protected $fillable = [
-        'karyawan_id',
-        'tanggal',
-        'jam_masuk',
-        'jam_keluar',
-        'status',
-        'keterangan'
-    ];
-
+    'karyawan_id',
+    'tanggal',
+    'jam_masuk',
+    'jam_keluar',
+    'status',
+    'keterangan',
+    'sumber',
+];
     /**
      * Relasi ke karyawan (banyak presensi milik 1 karyawan)
      */
