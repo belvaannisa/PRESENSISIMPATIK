@@ -4,21 +4,15 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Presensi extends Model
 {
     use HasFactory;
 
-    /**
-     * @var string
-     */
     protected $table = 'presensis';
 
-    /**
-     * @var array<int, string>
-     */
     protected $fillable = [
+
         'karyawan_id',
         'tanggal',
         'jam_masuk',
@@ -26,21 +20,22 @@ class Presensi extends Model
         'status',
         'keterangan',
         'sumber',
+
+        'diedit_oleh',
+        'waktu_edit',
     ];
+
 
     /**
      * Relasi ke karyawan (banyak presensi milik 1 karyawan)
      */
-    public function karyawan(): BelongsTo
+    public function karyawan()
     {
         return $this->belongsTo(Karyawan::class);
     }
 
-    /**
-     * Relasi ke user yang melakukan edit terakhir
-     */
-    public function editor(): BelongsTo
+    public function editor()
     {
-        return $this->belongsTo(User::class, 'diedit_oleh');
+        return $this->belongsTo(User::class,'diedit_oleh');
     }
 }
