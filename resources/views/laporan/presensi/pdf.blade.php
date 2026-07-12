@@ -74,8 +74,7 @@
 
 <div class="header">
 
-    <img src="{{ public_path('images/logo.jpeg') }}"
-         class="logo">
+    <img src="{{ public_path('images/logo.jpeg') }}" class="logo">
 
     <h2 style="margin:10px 0 0 0;">
         PT. Simpatik Borneo Utama
@@ -95,25 +94,19 @@
     @elseif($mode=='mingguan')
 
         <p>
-
             Periode :
-
             {{ \Carbon\Carbon::parse($tanggal)->startOfWeek()->translatedFormat('d F Y') }}
-
             s/d
-
             {{ \Carbon\Carbon::parse($tanggal)->endOfWeek()->translatedFormat('d F Y') }}
-
         </p>
 
-    @else
+    @elseif($mode=='bulanan')
 
         <p>
-
-            Bulan :
-
-            {{ \Carbon\Carbon::parse($bulan)->translatedFormat('F Y') }}
-
+            Periode : 
+            {{ \Carbon\Carbon::parse($startDate)->translatedFormat('d F Y') }} 
+            s/d 
+            {{ \Carbon\Carbon::parse($endDate)->translatedFormat('d F Y') }}
         </p>
 
     @endif
@@ -129,85 +122,49 @@
 <table>
 
     <thead>
-
     <tr>
-
         <th>Nama</th>
         <th>Tanggal</th>
         <th>Jam Masuk</th>
         <th>Jam Keluar</th>
         <th>Status</th>
-
     </tr>
-
     </thead>
 
     <tbody>
 
     @forelse($data as $d)
-
     <tr>
-
         <td>
-
             {{ $d->karyawan->nama ?? '-' }}
-
         </td>
-
         <td class="text-center">
-
             {{ $d->tanggal }}
-
         </td>
-
         <td class="text-center">
-
             {{ $d->jam_masuk }}
-
         </td>
-
         <td class="text-center">
-
             {{ $d->jam_keluar ?? '-' }}
-
         </td>
-
         <td class="text-center">
-
             @if($d->status=="Terlambat")
-
                 <span class="terlambat">
-
                     Terlambat
-
                 </span>
-
             @else
-
                 <span class="tepat">
-
                     Tepat Waktu
-
                 </span>
-
             @endif
-
         </td>
-
     </tr>
-
     @empty
-
     <tr>
-
         <td colspan="5" class="text-center">
-
             Tidak ada data.
-
         </td>
-
     </tr>
-
     @endforelse
 
     </tbody>
@@ -223,25 +180,20 @@
 @if($mode=='bulanan')
 
 <table style="margin-bottom:15px;">
-
     <tr>
         <td width="25%"><b>Jumlah Karyawan</b></td>
         <td>{{ count($rekapStaff) + count($rekapNonStaff) }} Orang</td>
     </tr>
-
     <tr>
         <td><b>Periode</b></td>
-        <td>{{ \Carbon\Carbon::parse($bulan)->translatedFormat('F Y') }}</td>
+        <td>{{ \Carbon\Carbon::parse($startDate)->translatedFormat('d F Y') }} - {{ \Carbon\Carbon::parse($endDate)->translatedFormat('d F Y') }}</td>
     </tr>
-
 </table>
 
 <h3 style="margin-bottom:10px;">Rekap Presensi Staff</h3>
 
 <table style="margin-bottom:25px;">
-
     <thead>
-
         <tr>
             <th>Nama</th>
             <th>Hadir</th>
@@ -251,61 +203,40 @@
             <th>Persentase</th>
             <th>Insentif</th>
         </tr>
-
     </thead>
-
     <tbody>
-
     @forelse($rekapStaff as $r)
-
         <tr>
-
             <td>{{ $r['nama'] }}</td>
-
             <td class="text-center">{{ $r['hadir'] }}</td>
-
             <td class="text-center">{{ $r['telat'] }}</td>
-
             <td class="text-center">{{ $r['ketidakhadiran'] }}</td>
-
             <td class="text-center">
-
                 @if($r['keterangan']=="Disiplin")
                     <span class="tepat">Disiplin</span>
                 @else
                     <span class="terlambat">Kurang Disiplin</span>
                 @endif
-
             </td>
-
             <td class="text-center">{{ $r['persen'] }}%</td>
-
             <td class="text-right">
                 Rp {{ number_format($r['insentif'],0,',','.') }}
             </td>
-
         </tr>
-
     @empty
-
         <tr>
             <td colspan="7" class="text-center">
                 Tidak ada data Staff.
             </td>
         </tr>
-
     @endforelse
-
     </tbody>
-
 </table>
 
 <h3 style="margin-bottom:10px;">Rekap Presensi Non Staff</h3>
 
 <table>
-
     <thead>
-
         <tr>
             <th>Nama</th>
             <th>Hadir</th>
@@ -315,53 +246,34 @@
             <th>Persentase</th>
             <th>Insentif</th>
         </tr>
-
     </thead>
-
     <tbody>
-
     @forelse($rekapNonStaff as $r)
-
         <tr>
-
             <td>{{ $r['nama'] }}</td>
-
             <td class="text-center">{{ $r['hadir'] }}</td>
-
             <td class="text-center">{{ $r['telat'] }}</td>
-
             <td class="text-center">{{ $r['ketidakhadiran'] }}</td>
-
             <td class="text-center">
-
                 @if($r['keterangan']=="Disiplin")
                     <span class="tepat">Disiplin</span>
                 @else
                     <span class="terlambat">Kurang Disiplin</span>
                 @endif
-
             </td>
-
             <td class="text-center">{{ $r['persen'] }}%</td>
-
             <td class="text-right">
                 Rp {{ number_format($r['insentif'],0,',','.') }}
             </td>
-
         </tr>
-
     @empty
-
         <tr>
             <td colspan="7" class="text-center">
                 Tidak ada data Non Staff.
             </td>
         </tr>
-
     @endforelse
-
     </tbody>
-
 </table>
 
 @endif
@@ -369,23 +281,16 @@
 <div class="footer">
 
 <p>
-
 Banjarbaru,
-
 {{ \Carbon\Carbon::now()->translatedFormat('d F Y') }}
-
 </p>
 
 <br><br><br>
 
 <p>
-
 <b>
-
 Kepala Personalia
-
 </b>
-
 </p>
 
 </div>
