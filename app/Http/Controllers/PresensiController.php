@@ -735,10 +735,11 @@ private function prosesRows(array $rows): void
     | Status
     |--------------------------------------------------------------------------
     */
-
-    $presensi->status = $this->tentukanStatus(
-        $presensi->jam_masuk
-    );
+// Mengirimkan dua parameter: jam_masuk dan tanggal
+        $presensi->status = $this->tentukanStatus(
+            $presensi->jam_masuk, 
+            $presensi->tanggal
+        );
 
     /*
     |--------------------------------------------------------------------------
@@ -901,52 +902,49 @@ private function sinkronisasiPresensi(): void
 }
 
 
-private function tentukanStatus($jamMasuk): string
-{
-    /*
-    |--------------------------------------------------------------------------
-    | Belum Ada Jam Masuk
-    |--------------------------------------------------------------------------
-    */
+private function tentukanStatus($jamMasuk, $tanggal): string
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | Belum Ada Jam Masuk
+        |--------------------------------------------------------------------------
+        */
+        if (empty($jamMasuk)) {
+            return 'Belum Hadir';
+        }
 
-    if (empty($jamMasuk)) {
+        $tanggalCarbon = \Carbon\Carbon::parse($tanggal);
 
-        return 'Belum Hadir';
+        /*
+        |--------------------------------------------------------------------------
+        | Logika Khusus Hari Minggu
+        |--------------------------------------------------------------------------
+        */
+        if ($tanggalCarbon->isSunday()) {
+            
+            // Cari tahu ini minggu ke-berapa di bulan tersebut
+            $mingguKe = ceil($tanggalCarbon->day / 7);
 
+            // Minggu ke-1 dan ke-2 LIBUR (Otomatis Tepat Waktu jika absen)
+            if ($mingguKe <= 2) {
+                return 'Tepat Waktu';
+            } 
+            // Minggu ke-3, 4, dan 5 MASUK (Batas Telat 09:15)
+            else {
+                return strtotime($jamMasuk) > strtotime('09:15:00') ? 'Terlambat' : 'Tepat Waktu';
+            }
+            
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Logika Hari Biasa (Senin - Sabtu)
+        |--------------------------------------------------------------------------
+        */
+        $jamDefault = config('jabatan.jam_masuk_default');
+
+        return strtotime($jamMasuk) > strtotime($jamDefault) ? 'Terlambat' : 'Tepat Waktu';
     }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Ambil Jam Masuk Default Dari Config
-    |--------------------------------------------------------------------------
-    */
-
-    $jamDefault = config(
-        'jabatan.jam_masuk_default'
-    );
-
-    /*
-    |--------------------------------------------------------------------------
-    | Tentukan Status
-    |--------------------------------------------------------------------------
-    */
-
-    return strtotime($jamMasuk)
-
-        >
-
-        strtotime($jamDefault)
-
-        ?
-
-        'Terlambat'
-
-        :
-
-        'Tepat Waktu';
-}
-
-  
   
     private function generateRecordHash($pin, $tanggal, $jam)
     {
@@ -1027,61 +1025,50 @@ private function tentukanStatus($jamMasuk): string
     }
 
     // 🔄 UPDATE
+   // 🔄 UPDATE
     public function update(Request $request, Presensi $presensi)
-{
-    $request->validate([
-        'jam_masuk'  => 'nullable',
-        'jam_keluar' => 'nullable',
-    ]);
+    {
+        $request->validate([
+            'jam_masuk'  => 'nullable',
+            'jam_keluar' => 'nullable',
+        ]);
 
-    /*
-    |--------------------------------------------------------------------------
-    | Hitung Status Otomatis
-    |--------------------------------------------------------------------------
-    */
+        /*
+        |--------------------------------------------------------------------------
+        | Hitung Status Otomatis (Mengirimkan Parameter Tanggal Juga)
+        |--------------------------------------------------------------------------
+        */
+        if ($request->filled('jam_masuk')) {
+            $status = $this->tentukanStatus($request->jam_masuk, $presensi->tanggal);
+        } else {
+            $status = 'Belum Hadir';
+        }
 
-    if ($request->filled('jam_masuk')) {
+        /*
+        |--------------------------------------------------------------------------
+        | Hitung Keterangan Otomatis
+        |--------------------------------------------------------------------------
+        */
+        $keterangan = ($request->filled('jam_masuk') || $request->filled('jam_keluar'))
+            ? 'Hadir'
+            : null;
 
-        $status = $this->tentukanStatus($request->jam_masuk);
+        /*
+        |--------------------------------------------------------------------------
+        | Update Data Presensi
+        |--------------------------------------------------------------------------
+        */
+        $presensi->update([
+            'jam_masuk'   => $request->jam_masuk,
+            'jam_keluar'  => $request->jam_keluar,
+            'status'      => $status,
+            'keterangan'  => $keterangan,
+            'diedit_oleh' => auth()->id(),
+            'waktu_edit'  => now(),
+        ]);
 
-    } else {
-
-        $status = '-';
-
+        return redirect()
+            ->route('presensi.index')
+            ->with('success', 'Data Presensi Berhasil Diupdate!');
     }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Hitung Keterangan Otomatis
-    |--------------------------------------------------------------------------
-    */
-
-    $keterangan = ($request->filled('jam_masuk') || $request->filled('jam_keluar'))
-        ? 'Hadir'
-        : null;
-
-    /*
-    |--------------------------------------------------------------------------
-    | Update Data Presensi
-    |--------------------------------------------------------------------------
-    */
-
-   $presensi->update([
-
-        'jam_masuk'  => $request->jam_masuk,
-        'jam_keluar' => $request->jam_keluar,
-        'status'     => $status,
-        'keterangan' => $keterangan,
-
-        'diedit_oleh' => auth()->id(),
-
-        'waktu_edit' => now(),
-
-    ]);
-
-    return redirect()
-        ->route('presensi.index')
-        ->with('success', 'Data Presensi Berhasil Diupdate!');
-}
-
 }
