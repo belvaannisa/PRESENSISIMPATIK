@@ -99,11 +99,40 @@ class SinkronisasiPresensiJob implements ShouldQueue
                 }
 
                 // 7. Logika JABATAN (Terbatas & Tidak Terbatas)
-                if (empty($presensi->jam_keluar)) {
-                    if ($karyawan->tipe_jam_keluar == config('jabatan.tidak_terbatas')) {
-                        $presensi->jam_keluar = config('jabatan.jam_keluar_default'); // Tembak 17:00
+                // 7. Tentukan Status Kehadiran & Logika Hari Minggu
+                if (empty($presensi->jam_masuk)) {
+                    $presensi->status = 'Belum Hadir';
+                } else {
+                    $tanggalCarbon = \Carbon\Carbon::parse($presensi->tanggal);
+                    
+                    // Cek apakah hari tersebut adalah HARI MINGGU
+                    if ($tanggalCarbon->isSunday()) {
+                        
+                        // Cari tahu ini hari minggu ke-berapa dalam bulan tersebut (1, 2, 3, 4, atau 5)
+                        $mingguKe = ceil($tanggalCarbon->day / 7);
+                        
+                        if ($mingguKe <= 2) {
+                            // MINGGU KE-1 & KE-2: LIBUR
+                            // Jika ada yang absen di hari libur, otomatis tidak dihitung telat
+                            $presensi->status = 'Tepat Waktu';
+                        } else {
+                            // MINGGU KE-3, 4, 5: MASUK KERJA
+                            // Jam masuk 09:00, batas telat 09:15
+                            if (strtotime($presensi->jam_masuk) > strtotime('09:15:00')) {
+                                $presensi->status = 'Terlambat';
+                            } else {
+                                $presensi->status = 'Tepat Waktu';
+                            }
+                        }
+                        
                     } else {
-                        $presensi->jam_keluar = null; // Terbatas tanpa checkout = kosong (-)
+                        // HARI BIASA (Senin - Sabtu)
+                        $batasTelatBiasa = config('jabatan.jam_masuk_default');
+                        if (strtotime($presensi->jam_masuk) > strtotime($batasTelatBiasa)) {
+                            $presensi->status = 'Terlambat';
+                        } else {
+                            $presensi->status = 'Tepat Waktu';
+                        }
                     }
                 }
 
