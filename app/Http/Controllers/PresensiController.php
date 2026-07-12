@@ -385,15 +385,26 @@ return back()->with(
         'Format file tidak didukung.'
     );
 }
-    private function dispatchPendingLogs(): void
+ private function dispatchPendingLogs(): void
 {
-    PresensiLog::where('status_sinkron', 'pending')
-        ->orderBy('id')
-        ->chunkById(200, function ($logs) {
+    PresensiLog::select(
+            'pin',
+            'tanggal'
+        )
+        ->where('status_sinkron', 'pending')
+        ->groupBy(
+            'pin',
+            'tanggal'
+        )
+        ->orderBy('tanggal')
+        ->chunk(300, function ($groups) {
 
-            foreach ($logs as $log) {
+            foreach ($groups as $group) {
 
-                SinkronisasiPresensiJob::dispatch($log->id);
+                SinkronisasiPresensiJob::dispatch(
+                    $group->pin,
+                    $group->tanggal
+                );
 
             }
 
