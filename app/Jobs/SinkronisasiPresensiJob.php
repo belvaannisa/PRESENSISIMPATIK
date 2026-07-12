@@ -42,7 +42,7 @@ class SinkronisasiPresensiJob implements ShouldQueue
     /**
      * Delay retry (detik)
      */
-    public $backoff =;
+    public $backoff = 10 ;
 
 
     /**
