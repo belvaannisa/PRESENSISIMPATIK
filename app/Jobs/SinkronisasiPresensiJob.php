@@ -30,25 +30,17 @@ class SinkronisasiPresensiJob implements ShouldQueue
     /**
      * Nama queue
      */
-    public $queue = 'presensi';
+   
 
 
     /**
      * Maksimal retry
      */
-    public $tries = 5;
+   public $tries = 5;
 
+public $backoff = 10;
 
-    /**
-     * Delay retry (detik)
-     */
-    public $backoff = 10 ;
-
-
-    /**
-     * Timeout job (detik)
-     */
-    public $timeout = 120;
+public $timeout = 120;
 
 
     /**
@@ -61,10 +53,11 @@ class SinkronisasiPresensiJob implements ShouldQueue
      * Create a new job instance.
      */
     public function __construct($logId)
-    {
-        $this->logId = $logId;
-    }
+{
+    $this->logId = $logId;
 
+    $this->onQueue('presensi');
+}
 
     /**
      * Execute the job.
