@@ -387,28 +387,7 @@ return back()->with(
 }
  private function dispatchPendingLogs(): void
 {
-    PresensiLog::select(
-            'pin',
-            'tanggal'
-        )
-        ->where('status_sinkron', 'pending')
-        ->groupBy(
-            'pin',
-            'tanggal'
-        )
-        ->orderBy('tanggal')
-        ->chunk(300, function ($groups) {
-
-            foreach ($groups as $group) {
-
-                SinkronisasiPresensiJob::dispatch(
-                    $group->pin,
-                    $group->tanggal
-                );
-
-            }
-
-        });
+   SinkronisasiPresensiJob::dispatch();
 }
 
 private function prosesRows(array $rows): void

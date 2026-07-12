@@ -79,13 +79,21 @@ public function upload(Request $request)
 
        
         $chunks = array_chunk($insertData, 500);
+       // ... (Kode array_chunk upsert ke PresensiLog biarkan sama) ...
         foreach ($chunks as $chunk) {
-            \App\Models\PresensiLog::upsert(
-                $chunk,
-                ['record_hash'], // Patokan data unik
-                ['updated_at']   // Jika duplikat, cukup update waktunya
-            );
+            \App\Models\PresensiLog::upsert($chunk, ['record_hash'], ['updated_at']);
         }
+
+        // PANGGIL JOB 1 KALI SAJA (Ini akan memproses semua chunk di atas secara bersamaan)
+        \App\Jobs\SinkronisasiPresensiJob::dispatch();
+
+        $response = response()->json([
+            'success'    => true,
+            'message'    => "Proses Bulk Selesai. Data sedang diproses.",
+            'total_data' => count($insertData)
+        ], 200);
+        
+        // ... (Kode return ke python biarkan sama) ...
 
         // 3. Trik agar Python langsung dapat balasan SUKSES tanpa menunggu Job selesai didaftarkan
         $response = response()->json([
