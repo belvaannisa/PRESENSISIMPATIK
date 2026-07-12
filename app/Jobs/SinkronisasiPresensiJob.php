@@ -13,7 +13,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-
+use Illuminate\Support\Facades\Http;
 
 class SinkronisasiPresensiJob implements ShouldQueue
 {
@@ -30,15 +30,17 @@ class SinkronisasiPresensiJob implements ShouldQueue
     /**
      * Nama queue
      */
-    public $queue = 'presensi';
+   
 
 
     /**
      * Maksimal retry
      */
-    public $tries = 5;
+   public $tries = 5;
 
+public $backoff = 10;
 
+<<<<<<< HEAD
     /**
      * Delay retry (detik)
      */
@@ -49,6 +51,9 @@ class SinkronisasiPresensiJob implements ShouldQueue
      * Timeout job (detik)
      */
     public $timeout = 120;
+=======
+public $timeout = 120; 
+>>>>>>> 71de79433b8e2935c82992c92ca5494fc34238db
 
 
     /**
@@ -61,10 +66,11 @@ class SinkronisasiPresensiJob implements ShouldQueue
      * Create a new job instance.
      */
     public function __construct($logId)
-    {
-        $this->logId = $logId;
-    }
+{
+    $this->logId = $logId;
 
+    $this->onQueue('presensi');
+}
 
     /**
      * Execute the job.
@@ -129,21 +135,16 @@ class SinkronisasiPresensiJob implements ShouldQueue
             */
             $this->tentukanStatus($presensi);
 
+Log::info('DATA PRESENSI', $presensi->getAttributes());
 
-            /*
-            |--------------------------------------------------------------------------
-            | Simpan Presensi
-            |--------------------------------------------------------------------------
-            */
-            $presensi->save();
+$presensi->save();
 
+$this->updateLog(
+    $log,
+    $karyawan
+);
 
-            /*
-            |--------------------------------------------------------------------------
-            | Update Presensi Log
-            |--------------------------------------------------------------------------
-            */
-            $this->updateLog($log, $karyawan);
+$this->kirimKeVps($log);
         });
     }
 
@@ -183,6 +184,47 @@ class SinkronisasiPresensiJob implements ShouldQueue
         return $log;
     }
 
+  private function kirimKeVps(PresensiLog $log): void
+{
+    try {
+        $response = Http::retry(2, 1000)
+            ->timeout(8)
+            ->withHeaders([
+                'X-API-KEY' => env('API_KEY'),
+            ])
+            ->post(env('SERVER_API') . '/api/presensi/upload', [
+                'log_id' => $log->id, // Contoh pengisian payload
+            ]);
+
+        if ($response->successful()) {
+            $log->update([
+                'status_server' => 'success',
+                'updated_at'    => now(),
+            ]);
+            return;
+        }
+
+        $log->update([
+            'status_server' => 'failed',
+            'updated_at'    => now(),
+        ]);
+
+        Log::error('Upload VPS gagal', [
+            'status' => $response->status(),
+            'body'   => $response->body(),
+        ]);
+
+    } catch (\Throwable $e) {
+        $log->update([
+            'status_server' => 'failed',
+            'updated_at'    => now(),
+        ]);
+
+        Log::error($e->getMessage(), [
+            'exception' => $e
+        ]);
+    }
+}
 
     /*
     |--------------------------------------------------------------------------
@@ -232,7 +274,7 @@ class SinkronisasiPresensiJob implements ShouldQueue
             $presensi->jam_keluar = null;
             $presensi->status = 'Tepat Waktu';
             $presensi->keterangan = 'Hadir';
-            $presensi->sumber = 'Mesin'; // Contoh pelengkap nilai terpotong
+           $presensi->sumber = 'fingerprint';
         }
 
 
