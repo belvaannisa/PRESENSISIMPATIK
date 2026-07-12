@@ -2,7 +2,6 @@
 
 namespace App\Jobs;
 
-
 use App\Models\Karyawan;
 use App\Models\Presensi;
 use App\Models\PresensiLog;
@@ -13,539 +12,123 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Http;
-
 
 class SinkronisasiPresensiJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    public $tries = 3;
+    public $timeout = 300; 
 
-    /*
-    |--------------------------------------------------------------------------
-    | Konfigurasi Queue
-    |--------------------------------------------------------------------------
-    */
-
-
-    /**
-     * Nama queue
-     */
-   
-
-
-    /**
-     * Maksimal retry
-     */
-   public $tries = 5;
-
-
-    /**
-     * Delay retry (detik)
-     */
-    public $backoff =10;
-
-
-    /**
-     * Timeout job (detik)
-     */
-    public $timeout = 120;
-
-
-
-    /**
-     * ID Log Presensi
-     */
-    protected $logId;
-
-
-    /**
-     * Create a new job instance.
-     */
-   protected string $pin;
-
-protected string $tanggal;
-
-public function __construct(
-    string $pin,
-    string $tanggal
-)
-{
-    $this->pin = trim($pin);
-
-    $this->tanggal = $tanggal;
-
-    $this->onQueue('presensi');
-}
-
-    /**
-     * Execute the job.
-     */
-   public function handle(): void
+    public function __construct()
     {
-        // 1. Cari Karyawan Berdasarkan PIN
-        $karyawan = Karyawan::where('pin', $this->pin)->first();
+        $this->onQueue('presensi');
+    }
 
-        if (!$karyawan) {
-            PresensiLog::where('pin', $this->pin)
-                ->where('tanggal', $this->tanggal)
-                ->where('status_sinkron', 'pending')
-                ->update([
-                    'status_sinkron' => 'unmatched',
-                    'catatan'        => 'PIN tidak ditemukan',
-                    'updated_at'     => now()
-                ]);
-            return;
-        }
-
-        // 2. Ambil SEMUA Scan Hari Itu (Tanpa mempedulikan status pending/matched)
-        $logs = PresensiLog::where('pin', $this->pin)
-            ->where('tanggal', $this->tanggal)
+    public function handle(): void
+    {
+        // 1. Ambil SEMUA log yang masih pending sekaligus
+        $pendingLogs = PresensiLog::where('status_sinkron', 'pending')
+            ->orderBy('tanggal')
             ->orderBy('jam')
-            ->lockForUpdate()
             ->get();
 
-        if ($logs->isEmpty()) {
+        if ($pendingLogs->isEmpty()) {
             return;
         }
+
+        // 2. Ambil semua Karyawan agar tidak query berulang kali (Super Cepat)
+        $karyawanMap = Karyawan::all()->keyBy('pin');
+
+        // 3. Kelompokkan Log berdasarkan PIN dan Tanggal
+        $groupedLogs = $pendingLogs->groupBy(function ($log) {
+            return trim($log->pin) . '_' . $log->tanggal;
+        });
 
         DB::beginTransaction();
 
         try {
-            // 3. Ambil atau Buat Presensi Baru
-            $presensi = Presensi::firstOrNew([
-                'karyawan_id' => $karyawan->id,
-                'tanggal'     => $this->tanggal
-            ]);
+            foreach ($groupedLogs as $groupKey => $logs) {
+                $firstLog = $logs->first();
+                $karyawan = $karyawanMap->get(trim($firstLog->pin));
 
-            if (!$presensi->exists) {
-                $presensi->keterangan = 'Hadir';
-                $presensi->sumber     = 'fingerprint';
-            }
-
-            // Kosongkan dulu untuk dihitung ulang
-            $presensi->jam_masuk  = null;
-            $presensi->jam_keluar = null;
-
-            // 4. Cari Scan Pertama (Masuk) & Terakhir (Keluar)
-            foreach ($logs as $scan) {
-                // Jam Masuk: ambil waktu terkecil
-                if (empty($presensi->jam_masuk) || strtotime($scan->jam) < strtotime($presensi->jam_masuk)) {
-                    $presensi->jam_masuk = $scan->jam;
-                }
-                
-                // Jam Keluar: ambil waktu terbesar
-                if (empty($presensi->jam_keluar) || strtotime($scan->jam) > strtotime($presensi->jam_keluar)) {
-                    $presensi->jam_keluar = $scan->jam;
-                }
-            }
-
-            // 5. Validasi: Cegah Double Scan Pagi Dianggap Pulang
-            // Jika selisih antara scan pertama dan terakhir kurang dari 1 Jam (3600 detik),
-            // artinya dia belum absen pulang (hanya spam jari di mesin).
-            if (!empty($presensi->jam_masuk) && !empty($presensi->jam_keluar)) {
-                $selisihDetik = strtotime($presensi->jam_keluar) - strtotime($presensi->jam_masuk);
-                if ($selisihDetik < 3600) { 
-                    $presensi->jam_keluar = null;
-                }
-            }
-
-            // 6. TERAPKAN ATURAN SESUAI PERMINTAAN
-            if (empty($presensi->jam_keluar)) { // <-- Jika statusnya BELUM absen pulang
-                
-                if ($karyawan->tipe_jam_keluar == config('jabatan.tidak_terbatas')) {
-                    // Jika Tidak Terbatas -> Tembak default 17:00
-                    $presensi->jam_keluar = config('jabatan.jam_keluar_default'); 
-                } else {
-                    // Jika Terbatas -> Biarkan null agar tampil strip (-)
-                    $presensi->jam_keluar = null; 
+                if (!$karyawan) {
+                    PresensiLog::whereIn('id', $logs->pluck('id'))->update([
+                        'status_sinkron' => 'unmatched',
+                        'catatan'        => 'PIN tidak ditemukan',
+                        'updated_at'     => now()
+                    ]);
+                    continue;
                 }
 
-            }
+                // 4. Ambil SEMUA scan hari itu (termasuk yg lama) agar jam masuk/keluar presisi
+                $allScans = PresensiLog::where('pin', trim($firstLog->pin))
+                    ->where('tanggal', $firstLog->tanggal)
+                    ->orderBy('jam')
+                    ->get();
 
-            // 7. Tentukan Status Kehadiran (Terlambat / Tepat Waktu)
-            $presensi->status = empty($presensi->jam_masuk) 
-                ? 'Belum Hadir' 
-                : (strtotime($presensi->jam_masuk) > strtotime(config('jabatan.jam_masuk_default')) ? 'Terlambat' : 'Tepat Waktu');
+                $presensi = Presensi::firstOrNew([
+                    'karyawan_id' => $karyawan->id,
+                    'tanggal'     => $firstLog->tanggal
+                ]);
 
-            $presensi->save();
+                if (!$presensi->exists) {
+                    $presensi->keterangan = 'Hadir';
+                    $presensi->sumber     = 'fingerprint';
+                }
 
-            // 8. Update Semua Log (Tandai sudah diproses)
-            PresensiLog::whereIn('id', $logs->pluck('id'))
-                ->update([
+                $presensi->jam_masuk  = null;
+                $presensi->jam_keluar = null;
+
+                // 5. Cari Jam Masuk & Keluar Aktual
+                foreach ($allScans as $scan) {
+                    if (empty($presensi->jam_masuk) || strtotime($scan->jam) < strtotime($presensi->jam_masuk)) {
+                        $presensi->jam_masuk = $scan->jam;
+                    }
+                    if (empty($presensi->jam_keluar) || strtotime($scan->jam) > strtotime($presensi->jam_keluar)) {
+                        $presensi->jam_keluar = $scan->jam;
+                    }
+                }
+
+                // 6. Validasi Mencegah Double Scan Pagi (Kurang dari 1 jam)
+                if (!empty($presensi->jam_masuk) && !empty($presensi->jam_keluar)) {
+                    $selisihDetik = strtotime($presensi->jam_keluar) - strtotime($presensi->jam_masuk);
+                    if ($selisihDetik < 3600) { 
+                        $presensi->jam_keluar = null; // Artinya belum absen pulang
+                    }
+                }
+
+                // 7. Logika JABATAN (Terbatas & Tidak Terbatas)
+                if (empty($presensi->jam_keluar)) {
+                    if ($karyawan->tipe_jam_keluar == config('jabatan.tidak_terbatas')) {
+                        $presensi->jam_keluar = config('jabatan.jam_keluar_default'); // Tembak 17:00
+                    } else {
+                        $presensi->jam_keluar = null; // Terbatas tanpa checkout = kosong (-)
+                    }
+                }
+
+                $presensi->status = empty($presensi->jam_masuk) 
+                    ? 'Belum Hadir' 
+                    : (strtotime($presensi->jam_masuk) > strtotime(config('jabatan.jam_masuk_default')) ? 'Terlambat' : 'Tepat Waktu');
+
+                $presensi->save();
+
+                // 8. Tandai berhasil
+                PresensiLog::whereIn('id', $logs->pluck('id'))->update([
                     'karyawan_id'    => $karyawan->id,
                     'status_sinkron' => 'matched',
                     'status_server'  => 'pending', 
                     'catatan'        => 'Sinkronisasi berhasil',
                     'updated_at'     => now()
                 ]);
+            }
 
             DB::commit();
 
         } catch (\Throwable $e) {
             DB::rollBack();
+            Log::error('Sinkronisasi Gagal: ' . $e->getMessage());
             throw $e;
         }
-    }
-   
-  private function kirimKeVps(PresensiLog $log): void
-{
-    try {
-        $response = Http::retry(2, 1000)
-            ->timeout(8)
-            ->withHeaders([
-                'X-API-KEY' => env('API_KEY'),
-            ])
-            ->post(env('SERVER_API') . '/api/presensi/upload', [
-                'log_id' => $log->id, // Contoh pengisian payload
-            ]);
-
-        if ($response->successful()) {
-            $log->update([
-                'status_server' => 'success',
-                'updated_at'    => now(),
-            ]);
-            return;
-        }
-
-        $log->update([
-            'status_server' => 'failed',
-            'updated_at'    => now(),
-        ]);
-
-        Log::error('Upload VPS gagal', [
-            'status' => $response->status(),
-            'body'   => $response->body(),
-        ]);
-
-    } catch (\Throwable $e) {
-        $log->update([
-            'status_server' => 'failed',
-            'updated_at'    => now(),
-        ]);
-
-        Log::error($e->getMessage(), [
-            'exception' => $e
-        ]);
-    }
-}
-
-    /*
-    |--------------------------------------------------------------------------
-    | Cari Karyawan Berdasarkan PIN
-    |--------------------------------------------------------------------------
-    */
-   
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Ambil Atau Buat Presensi Baru (Kelanjutan kode yang terpotong)
-    |--------------------------------------------------------------------------
-    */
-    private function ambilAtauBuatPresensi(Karyawan $karyawan, PresensiLog $log): Presensi
-    {
-        // Cari Presensi Hari Yang Sama
-        $presensi = Presensi::where('karyawan_id', $karyawan->id)
-            ->where('tanggal', $log->tanggal)
-            ->lockForUpdate()
-            ->first();
-
-
-        // Jika Belum Ada Maka Buat Baru
-        if (!$presensi) {
-            $presensi = new Presensi();
-            $presensi->karyawan_id = $karyawan->id;
-            $presensi->tanggal = $log->tanggal;
-            $presensi->jam_masuk = null;
-            $presensi->jam_keluar = null;
-            $presensi->status = 'Tepat Waktu';
-            $presensi->keterangan = 'Hadir';
-           $presensi->sumber = 'fingerprint';
-        }
-
-
-        return $presensi;
-    }
-    /*
-|--------------------------------------------------------------------------
-| Tentukan Jam Masuk
-|--------------------------------------------------------------------------
-*/
-private function setJamMasuk(
-    Presensi $presensi,
-    PresensiLog $log
-): void {
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Jika belum ada jam masuk
-    |--------------------------------------------------------------------------
-    */
-
-
-    if (empty($presensi->jam_masuk)) {
-
-
-        $presensi->jam_masuk = $log->jam;
-
-
-        return;
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Ambil scan paling awal
-    |--------------------------------------------------------------------------
-    */
-
-
-    if (
-
-
-        strtotime($log->jam)
-
-
-        <
-
-
-        strtotime($presensi->jam_masuk)
-
-
-    ) {
-
-
-        $presensi->jam_masuk = $log->jam;
-
-
-    }
-
-
-}
-/*
-|--------------------------------------------------------------------------
-| Tentukan Jam Keluar
-|--------------------------------------------------------------------------
-*/
-private function setJamKeluar(
-    Presensi $presensi,
-    PresensiLog $log,
-    Karyawan $karyawan
-): void {
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Ambil Tipe Jam Keluar Pegawai
-    |--------------------------------------------------------------------------
-    */
-
-
-    $tipeJamKeluar = $karyawan->tipe_jam_keluar;
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Pegawai Tidak Terbatas
-    |--------------------------------------------------------------------------
-    */
-
-
-    if (
-
-
-        $tipeJamKeluar == config('jabatan.tidak_terbatas')
-
-
-    ) {
-
-
-        if (
-
-
-            empty($presensi->jam_keluar)
-
-
-            ||
-
-
-            strtotime($log->jam)
-
-
-            >
-
-
-            strtotime($presensi->jam_keluar)
-
-
-        ) {
-
-
-            $presensi->jam_keluar = $log->jam;
-
-
-        }
-
-
-        return;
-
-
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Pegawai Terbatas
-    |--------------------------------------------------------------------------
-    */
-
-
-    $jamDefault = config('jabatan.jam_keluar_default');
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Scan Sebelum Jam Pulang
-    |--------------------------------------------------------------------------
-    */
-
-
-    if (
-
-
-        strtotime($log->jam)
-
-
-        <
-
-
-        strtotime($jamDefault)
-
-
-    ) {
-
-
-        return;
-
-
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Scan Sesudah Jam Pulang
-    |--------------------------------------------------------------------------
-    */
-
-
-    if (
-
-
-        empty($presensi->jam_keluar)
-
-
-        ||
-
-
-        strtotime($log->jam)
-
-
-        >
-
-
-        strtotime($presensi->jam_keluar)
-
-
-    ) {
-
-
-        $presensi->jam_keluar = $log->jam;
-
-
-    }
-
-
-}
-
-/*
-|--------------------------------------------------------------------------
-| Tentukan Status Kehadiran
-|--------------------------------------------------------------------------
-*/
-private function tentukanStatus(Presensi $presensi): void
-{
-    /*
-    |--------------------------------------------------------------------------
-    | Jam Masuk Belum Ada
-    |--------------------------------------------------------------------------
-    */
-    if (empty($presensi->jam_masuk)) {
-
-        $presensi->status = 'Belum Hadir';
-
-        return;
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Terlambat / Tepat Waktu
-    |--------------------------------------------------------------------------
-    */
-
-    $presensi->status =
-        strtotime($presensi->jam_masuk) >
-        strtotime(config('jabatan.jam_masuk_default'))
-            ? 'Terlambat'
-            : 'Tepat Waktu';
-}
-
-/*
-|--------------------------------------------------------------------------
-| Update Status Sinkronisasi Log
-|--------------------------------------------------------------------------
-*/
-private function updateLog(
-    PresensiLog $log,
-    Karyawan $karyawan
-): void
-{
-    $log->update([
-
-        'karyawan_id'     => $karyawan->id,
-
-        'status_sinkron'  => 'matched',
-
-        'catatan'         => 'Sinkronisasi berhasil',
-
-        'updated_at'      => now()
-
-    ]);
-}
-
-/*
-|--------------------------------------------------------------------------
-| Job Gagal Setelah Retry Habis
-|--------------------------------------------------------------------------
-*/
-
-
-    public function failed(\Throwable $e): void
-    {
-        // Sesuaikan dengan parameter class (pin & tanggal)
-        PresensiLog::where('pin', $this->pin)
-            ->where('tanggal', $this->tanggal)
-            ->where('status_sinkron', 'pending')
-            ->update([
-                'status_sinkron' => 'failed',
-                'catatan' => substr($e->getMessage(), 0, 255)
-            ]);
-
-        Log::error('Sinkronisasi Presensi Gagal', [
-            'pin' => $this->pin,
-            'tanggal' => $this->tanggal,
-            'error' => $e->getMessage()
-        ]);
     }
 }
