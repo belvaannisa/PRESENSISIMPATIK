@@ -39,7 +39,8 @@ public function index(Request $request)
     $presensis = Presensi::query()
 
         ->with([
-            'karyawan:id,nama,jabatan,pin'
+            'karyawan:id,nama,jabatan,pin',
+            'editor:id,name'
         ])
 
         ->when($search, function ($query) use ($search) {
@@ -384,15 +385,26 @@ return back()->with(
         'Format file tidak didukung.'
     );
 }
-    private function dispatchPendingLogs(): void
+ private function dispatchPendingLogs(): void
 {
-    PresensiLog::where('status_sinkron', 'pending')
-        ->orderBy('id')
-        ->chunkById(200, function ($logs) {
+    PresensiLog::select(
+            'pin',
+            'tanggal'
+        )
+        ->where('status_sinkron', 'pending')
+        ->groupBy(
+            'pin',
+            'tanggal'
+        )
+        ->orderBy('tanggal')
+        ->chunk(300, function ($groups) {
 
-            foreach ($logs as $log) {
+            foreach ($groups as $group) {
 
-                SinkronisasiPresensiJob::dispatch($log->id);
+                SinkronisasiPresensiJob::dispatch(
+                    $group->pin,
+                    $group->tanggal
+                );
 
             }
 
@@ -1036,38 +1048,61 @@ private function tentukanStatus($jamMasuk): string
     }
 
     // 🔄 UPDATE
-    public function update(Request $request, Karyawan $karyawan)
-    {
-            $request->validate([
-                'pin' => 'nullable|string|unique:karyawans,pin,' . $karyawan->id,
-                'nama' => 'required|string|max:255',
-                'jabatan' => 'required',
-                'no_hp' => 'nullable|string|max:20',
-                'tanggal_masuk' => 'nullable|date',
-                'status_aktif' => 'nullable|boolean',
-                'jam_keluar' => 'nullable'
-            ]);
+    public function update(Request $request, Presensi $presensi)
+{
+    $request->validate([
+        'jam_masuk'  => 'nullable',
+        'jam_keluar' => 'nullable',
+    ]);
 
-            $tipeJamKeluar = $this->getTipeJamKeluar($request->jabatan);
+    /*
+    |--------------------------------------------------------------------------
+    | Hitung Status Otomatis
+    |--------------------------------------------------------------------------
+    */
 
-            $jamKeluar = $tipeJamKeluar == config('jabatan.tidak_terbatas')
-                ? null
-                : ($request->jam_keluar ?: config('jabatan.jam_keluar_default'));
+    if ($request->filled('jam_masuk')) {
 
-            $karyawan->update([
-                'pin' => $request->pin,
-                'nama' => $request->nama,
-                'jabatan' => $request->jabatan,
-                'no_hp' => $request->no_hp,
-                'tanggal_masuk' => $request->tanggal_masuk,
-                'status_aktif' => $request->status_aktif,
-                'tipe_jam_keluar' => $tipeJamKeluar,
-                'jam_keluar' => $jamKeluar,
-            ]);
+        $status = $this->tentukanStatus($request->jam_masuk);
 
-            return redirect()
-                ->route('karyawan.index')
-                ->with('success', 'Data Karyawan Berhasil Diedit!');
+    } else {
+
+        $status = '-';
+
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Hitung Keterangan Otomatis
+    |--------------------------------------------------------------------------
+    */
+
+    $keterangan = ($request->filled('jam_masuk') || $request->filled('jam_keluar'))
+        ? 'Hadir'
+        : null;
+
+    /*
+    |--------------------------------------------------------------------------
+    | Update Data Presensi
+    |--------------------------------------------------------------------------
+    */
+
+   $presensi->update([
+
+        'jam_masuk'  => $request->jam_masuk,
+        'jam_keluar' => $request->jam_keluar,
+        'status'     => $status,
+        'keterangan' => $keterangan,
+
+        'diedit_oleh' => auth()->id(),
+
+        'waktu_edit' => now(),
+
+    ]);
+
+    return redirect()
+        ->route('presensi.index')
+        ->with('success', 'Data Presensi Berhasil Diupdate!');
+}
 
 }

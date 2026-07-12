@@ -49,7 +49,7 @@ class RegisteredUserController extends Controller
 
         'role' => [
             'required',
-            'in:admin,kepala_personalia,pimpinan'
+            'in:admin,kepala_personalia,pimpinan,haf'
         ],
 
         'password' => [

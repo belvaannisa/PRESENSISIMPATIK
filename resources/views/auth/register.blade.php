@@ -139,17 +139,20 @@
         </option>
 
         <option value="admin">
-            Admin
+            ADMIN
         </option>
 
         <option value="kepala_personalia">
-            Kepala Personalia
+            KEPALA GUDANG & KEPALA PERSONALIA
         </option>
 
         <option value="pimpinan">
-            Pimpinan
+            PIMPINAN
         </option>
 
+        <option value="haf">
+            HEAD ACCOUNTING & FINANCE
+        </option>
     </select>
 
 </div>
