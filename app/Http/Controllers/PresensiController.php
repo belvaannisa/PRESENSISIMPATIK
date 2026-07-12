@@ -18,66 +18,113 @@ use Throwable;
 class PresensiController extends Controller
 {
     
-    private function getTipeJamKeluar(string $jabatan): string
-    {
-        return in_array(
-            $jabatan,
-            config('jabatan.jabatan_tidak_terbatas')
-        )
-            ? config('jabatan.tidak_terbatas')
-            : config('jabatan.terbatas');
-    }
+   /*
+|--------------------------------------------------------------------------
+| Menentukan Tipe Jam Keluar
+|--------------------------------------------------------------------------
+*/
 
-   public function index(Request $request)
-    {
-        $search = $request->search;
+private function getTipeJamKeluar(string $jabatan): string
+{
+    return in_array(
+        strtoupper(trim($jabatan)),
+        config('jabatan.jabatan_tidak_terbatas'),
+        true
+    )
+        ? config('jabatan.tidak_terbatas')
+        : config('jabatan.terbatas');
+}
 
-        $presensis = Presensi::with('karyawan')
+public function index(Request $request)
+{
+    $search = trim($request->search);
 
-            ->when($search, function ($query) use ($search) {
+    $presensis = Presensi::query()
 
-                $query->where(function ($q) use ($search) {
+        ->with([
+            'karyawan:id,nama,jabatan,pin'
+        ])
 
-                    $q->where('tanggal', 'like', "%{$search}%")
-                    ->orWhere('status', 'like', "%{$search}%")
-                    ->orWhereHas('karyawan', function ($karyawan) use ($search) {
+        ->when($search, function ($query) use ($search) {
 
-                            $karyawan->where(
+            $query->where(function ($q) use ($search) {
+
+                $q->whereDate(
+                    'tanggal',
+                    'like',
+                    "%{$search}%"
+                )
+
+                ->orWhere(
+                    'status',
+                    'like',
+                    "%{$search}%"
+                )
+
+                ->orWhereHas(
+                    'karyawan',
+                    function ($karyawan) use ($search) {
+
+                        $karyawan
+
+                            ->where(
                                 'nama',
+                                'like',
+                                "%{$search}%"
+                            )
+
+                            ->orWhere(
+                                'pin',
+                                'like',
+                                "%{$search}%"
+                            )
+
+                            ->orWhere(
+                                'jabatan',
                                 'like',
                                 "%{$search}%"
                             );
 
-                    });
+                    }
 
-                });
+                );
 
-            })
+            });
 
-            ->orderBy('tanggal', 'desc')
-            ->orderBy('jam_masuk', 'desc')
+        })
 
-            ->paginate(10);
+        ->orderByDesc('tanggal')
 
-        $no =
-            ($presensis->currentPage() - 1)
-            * $presensis->perPage()
-            + 1;
+        ->orderBy('jam_masuk')
 
-        return view(
-            'presensi.index',
-            compact(
-                'presensis',
-                'search',
-                'no'
-            )
-        );
-    }
+        ->paginate(10)
+
+        ->withQueryString();
+
+    $no = ($presensis->currentPage() - 1)
+        * $presensis->perPage()
+        + 1;
+
+    return view(
+        'presensi.index',
+        compact(
+            'presensis',
+            'search',
+            'no'
+        )
+    );
+}
 
    public function importLocal()
 {
     $incomingPath = storage_path('app/fingerprint/incoming');
     $processedPath = storage_path('app/fingerprint/processed');
+
+    /*
+    |--------------------------------------------------------------------------
+    | Validasi Folder
+    |--------------------------------------------------------------------------
+    */
 
     if (!is_dir($incomingPath)) {
 
@@ -88,60 +135,125 @@ class PresensiController extends Controller
 
     }
 
+    if (!is_dir($processedPath)) {
+
+        mkdir(
+            $processedPath,
+            0755,
+            true
+        );
+
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Ambil Seluruh File
+    |--------------------------------------------------------------------------
+    */
+
     $files = glob(
+
         $incomingPath . '/*.{csv,xls,xlsx}',
+
         GLOB_BRACE
+
     );
 
     if (empty($files)) {
 
         return back()->with(
+
             'error',
-            'Tidak ada file presensi.'
+
+            'Tidak ada file fingerprint.'
+
         );
 
     }
 
-    try {
+    $jumlahFile = 0;
 
-        foreach ($files as $file) {
+    /*
+    |--------------------------------------------------------------------------
+    | Loop File
+    |--------------------------------------------------------------------------
+    */
 
-            DB::beginTransaction();
+    foreach ($files as $file) {
+
+        DB::beginTransaction();
+
+        try {
+
+            /*
+            |--------------------------------------------------------------------------
+            | Baca File
+            |--------------------------------------------------------------------------
+            */
 
             $rows = $this->bacaFile($file);
+
+            /*
+            |--------------------------------------------------------------------------
+            | Simpan Ke Presensi Log
+            |--------------------------------------------------------------------------
+            */
 
             $this->prosesRows($rows);
 
             DB::commit();
 
+            /*
+            |--------------------------------------------------------------------------
+            | Pindahkan File
+            |--------------------------------------------------------------------------
+            */
+
             rename(
+
                 $file,
+
                 $processedPath . '/' . basename($file)
+
             );
+
+            $jumlahFile++;
 
         }
 
-        $this->sinkronisasiPresensi();
+        catch (\Throwable $e) {
 
-        $this->kirimDataPendingKeVps();
+            DB::rollBack();
 
-        return back()->with(
-            'success',
-            'Auto Import berhasil.'
-        );
+            Log::error($e);
 
-    } catch (\Throwable $e) {
-
-        DB::rollBack();
-
-        Log::error($e);
-
-        return back()->with(
-            'error',
-            $e->getMessage()
-        );
+        }
 
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Sinkronisasi Lokal
+    |--------------------------------------------------------------------------
+    */
+
+    $this->sinkronisasiPresensi();
+
+    /*
+    |--------------------------------------------------------------------------
+    | Upload Ke VPS
+    |--------------------------------------------------------------------------
+    */
+
+    $this->kirimDataPendingKeVps();
+
+    return back()->with(
+
+        'success',
+
+        "{$jumlahFile} file berhasil diproses."
+
+    );
 }
 
     public function upload(Request $request)
@@ -429,87 +541,169 @@ class PresensiController extends Controller
 
     private function prosesLogKePresensi($karyawan, $logs)
     {
-    $logs = $logs->sortBy('jam')->values();
+        $logs = $logs->sortBy('jam')->values();
 
-    $scanMasuk = $logs->first();
+        $jumlahScan = $logs->count();
 
-    $scanKeluar = null;
+        $scanMasuk = null;
+        $scanKeluar = null;
 
-    foreach ($logs as $log) {
+        /*
+        |--------------------------------------------------------------------------
+        | Jika terdapat 2 scan atau lebih
+        |--------------------------------------------------------------------------
+        */
 
-        $selisih = strtotime($log->jam) - strtotime($scanMasuk->jam);
+        if ($jumlahScan >= 2) {
 
-        // Scan dianggap jam keluar jika minimal selisih 5 menit
-        if ($selisih >= 300) {
+            $scanMasuk = $logs->first();
 
-            $scanKeluar = $log;
+            $scanTerakhir = $logs->last();
+
+            // Jika scan terakhir berbeda minimal 5 menit
+            // maka dianggap jam keluar.
+            if (
+                strtotime($scanTerakhir->jam) -
+                strtotime($scanMasuk->jam) >= 300
+            ) {
+
+                $scanKeluar = $scanTerakhir;
+
+            }
 
         }
 
-    }
+        /*
+        |--------------------------------------------------------------------------
+        | Jika hanya ada 1 scan
+        |--------------------------------------------------------------------------
+        */
 
-    $presensi = Presensi::firstOrNew([
-        'karyawan_id' => $karyawan->id,
-        'tanggal'     => $scanMasuk->tanggal,
-    ]);
+        else {
 
-    /*
-    |--------------------------------------------------------------------------
-    | Jam Masuk
-    |--------------------------------------------------------------------------
-    */
+            $scan = $logs->first();
 
-    $presensi->jam_masuk = $scanMasuk->jam;
+            // Hari :
+            // 1 = Senin
+            // ...
+            // 7 = Minggu
+            $hari = date('N', strtotime($scan->tanggal));
 
-    /*
-    |--------------------------------------------------------------------------
-    | Pegawai Terbatas / Tidak Terbatas
-    |--------------------------------------------------------------------------
-    */
+            /*
+            |--------------------------------------------------------------------------
+            | Hari Minggu
+            |--------------------------------------------------------------------------
+            | Scan tunggal hari Minggu dianggap scan pulang
+            */
 
-    $tidakTerbatas =
-        $karyawan->tipe_jam_keluar ==
-        config('jabatan.tidak_terbatas');
+            if ($hari == 7) {
 
-    if ($scanKeluar) {
+                $scanKeluar = $scan;
 
-    $presensi->jam_keluar = $scanKeluar->jam;
+            }
 
-    } else {
+            /*
+            |--------------------------------------------------------------------------
+            | Senin - Sabtu
+            |--------------------------------------------------------------------------
+            */
 
-        if ($tidakTerbatas) {
+            else {
 
-            $presensi->jam_keluar =
-                config('jabatan.jam_keluar_default');
+                if ($scan->jam < '12:30:00') {
+
+                    // Scan masuk
+                    $scanMasuk = $scan;
+
+                } else {
+
+                    // Scan keluar
+                    $scanKeluar = $scan;
+
+                }
+
+            }
+
+        }
+
+        $presensi = Presensi::firstOrNew([
+            'karyawan_id' => $karyawan->id,
+            'tanggal' => $logs->first()->tanggal,
+        ]);
+        /*
+        |--------------------------------------------------------------------------
+        | Jam Masuk
+        |--------------------------------------------------------------------------
+        */
+
+        $presensi->jam_masuk =
+        $scanMasuk
+            ? $scanMasuk->jam
+            : null;
+
+        /*
+        |--------------------------------------------------------------------------
+        | Pegawai Terbatas / Tidak Terbatas
+        |--------------------------------------------------------------------------
+        */
+
+        $tidakTerbatas =
+            $karyawan->tipe_jam_keluar ==
+            config('jabatan.tidak_terbatas');
+
+        if ($scanKeluar) {
+
+            $presensi->jam_keluar = $scanKeluar->jam;
 
         } else {
 
-            $presensi->jam_keluar = null;
+            if ($tidakTerbatas && $scanMasuk) {
+
+                $presensi->jam_keluar =
+                    config('jabatan.jam_keluar_default');
+
+            } else {
+
+                $presensi->jam_keluar = null;
+
+            }
 
         }
 
+        /*
+        |--------------------------------------------------------------------------
+        | Status
+        |--------------------------------------------------------------------------
+        */
+
+            if ($scanMasuk) {
+
+                $presensi->status =
+                    $this->tentukanStatus($scanMasuk->jam);
+
+            } else {
+
+                $presensi->status = '-';
+
+            }
+        /*
+        |--------------------------------------------------------------------------
+        | Keterangan
+        |--------------------------------------------------------------------------
+        */
+
+       if ($scanMasuk || $scanKeluar) {
+
+            $presensi->keterangan = 'Hadir';
+
+        } else {
+
+            $presensi->keterangan = null;
+
+        }
+
+        $presensi->save();
     }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Status
-    |--------------------------------------------------------------------------
-    */
-
-    $presensi->status = $this->tentukanStatus(
-        $scanMasuk->jam
-    );
-
-    /*
-    |--------------------------------------------------------------------------
-    | Keterangan
-    |--------------------------------------------------------------------------
-    */
-
-    $presensi->keterangan = 'Hadir';
-
-    $presensi->save();
-}
 
 private function sinkronisasiPresensi()
 {
