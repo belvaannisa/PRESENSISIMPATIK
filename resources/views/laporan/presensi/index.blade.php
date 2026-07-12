@@ -4,465 +4,693 @@
 
 <style>
 /* ================= MOBILE ================= */
-@media (max-width: 768px) {
+@media (max-width:768px){
 
-    .container {
-        padding: 10px !important;
+    .container{
+        padding:10px !important;
     }
 
-    .table-mobile {
-        display: none;
+    .table-mobile{
+        display:none;
     }
 
-    .card-mobile {
-        display: block;
+    .card-mobile{
+        display:block;
     }
 
-    .card-item {
-        border: 1px solid #ddd;
-        border-radius: 10px;
-        padding: 12px;
-        margin-bottom: 10px;
-        background: #fff;
+    .card-item{
+        border:1px solid #ddd;
+        border-radius:10px;
+        padding:12px;
+        margin-bottom:10px;
+        background:#fff;
     }
 
-    .card-item h6 {
-        font-size: 14px;
-        margin-bottom: 5px;
+    .card-item h6{
+        font-size:14px;
+        margin-bottom:5px;
     }
 
-    .card-item p {
-        font-size: 13px;
-        margin-bottom: 3px;
+    .card-item p{
+        font-size:13px;
+        margin-bottom:3px;
     }
+
 }
 
 /* ================= DESKTOP ================= */
-@media (min-width: 769px) {
-    .card-mobile {
-        display: none;
+
+@media(min-width:769px){
+
+    .card-mobile{
+        display:none;
     }
+
 }
 </style>
 
 <div class="container mt-4">
 
-    <div class="card shadow-sm">
-        <div class="card-header text-white" style="background:#FA713F;">
-            <h5 class="mb-0">Laporan Presensi</h5>
-        </div>
+<div class="card shadow-sm">
 
-        <div class="card-body">
-            {{-- FILTER + DOWNLOAD --}}
-            <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+<div class="card-header text-white"
+style="background:#FA713F;">
 
-     
-            <form method="GET" class="row g-2 flex-grow-1">
-
-                <div class="col-md-3 col-12">
-                    <select name="mode" class="form-control" onchange="this.form.submit()">
-                        <option value="harian" {{ $mode=='harian'?'selected':'' }}>Harian</option>
-                        <option value="mingguan" {{ $mode=='mingguan'?'selected':'' }}>Mingguan</option>
-                        <option value="bulanan" {{ $mode=='bulanan'?'selected':'' }}>Bulanan</option>
-                    </select>
-                </div>
-
-                <div class="col-md-3 col-12" id="tanggalField">
-                    <input type="date" name="tanggal" value="{{ $tanggal ?? '' }}" class="form-control">
-                </div>
-
-                <div class="col-md-3 col-12" id="bulanField">
-                    <input type="month" name="bulan" value="{{ $bulan ?? '' }}" class="form-control">
-                </div>
-
-                <div class="col-md-2 col-12">
-                    <button class="btn btn-dark w-100">Filter</button>
-                </div>
-
-            </form>
-
-            {{-- DOWNLOAD BUTTON (KANAN) --}}
-            <div>
-                <a href="{{ route('laporan.presensi.exportPdf', request()->all()) }}"
-                    class="btn btn-danger">
-                    <i class="bi bi-file-earmark-pdf-fill"></i>
-                    Print PDF
-                </a>
-            </div>
+<h5 class="mb-0">
+Laporan Presensi
+</h5>
 
 </div>
-            {{-- ================= HARIAN & MINGGUAN ================= --}}
-            @if($mode == 'harian' || $mode == 'mingguan')
-
-            {{-- DESKTOP --}}
-            <div class="table-responsive table-mobile">
-                <table class="table table-bordered table-striped">
-                    <thead class="text-center" style="background:#FA713F;color:white;">
-                        <tr>
-                            <th>Nama</th>
-                            <th>Tanggal</th>
-                            <th>Masuk</th>
-                            <th>Keluar</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($data as $d)
-                        <tr>
-                            <td>{{ $d->karyawan->nama ?? '-' }}</td>
-                            <td class="text-center">
-                                {{ $d->tanggal ? \Carbon\Carbon::parse($d->tanggal)->format('d-m-Y') : '-' }}
-                            </td>
-                            <td class="text-center">
-                                {{ !empty($d->jam_masuk) ? $d->jam_masuk : '-' }}
-                            </td>
-                            <td class="text-center">
-                                {{ !empty($d->jam_keluar) ? $d->jam_keluar : '-' }}
-                            </td>
-                            <td class="text-center">
-                                @if($d->status == 'Terlambat')
-                                    <span class="badge bg-danger">Terlambat</span>
-                                @else
-                                    <span class="badge bg-success">Tepat Waktu</span>
-                                @endif
-                            </td>
-                        </tr>
-                        @empty
-                        <tr>
-                            <td colspan="5" class="text-center">Tidak Ada Data</td>
-                        </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-
-            {{-- MOBILE --}}
-            <div class="card-mobile">
-                @forelse($data as $d)
-                <div class="card-item">
-
-                    <h6><strong>{{ $d->karyawan->nama ?? '-' }}</strong></h6>
-
-                    <p>
-                        Tanggal:
-                        {{ $d->tanggal ? \Carbon\Carbon::parse($d->tanggal)->format('d-m-Y') : '-' }}
-                    </p>
-                    <p>Masuk: {{ !empty($d->jam_masuk) ? $d->jam_masuk : '-' }}</p>
-                    <p>Keluar: {{ !empty($d->jam_keluar) ? $d->jam_keluar : '-' }}</p>
-
-                    <p>
-                        Status:
-                        @if($d->status == 'Terlambat')
-                            <span class="badge bg-danger">Terlambat</span>
-                        @else
-                            <span class="badge bg-success">Tepat Waktu</span>
-                        @endif
-                    </p>
 
-                </div>
-                @empty
-                <div class="text-center text-muted">Tidak ada data</div>
-                @endforelse
-            </div>
+<div class="card-body">
 
-            @endif
+{{-- FILTER --}}
 
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
 
-            {{-- ================= BULANAN ================= --}}
-            @if($mode == 'bulanan')
+<form method="GET" class="row g-2 flex-grow-1">
 
-            {{-- DESKTOP --}}
-           <div class="table-responsive table-mobile">
-            <h5 class="mb-3">Rekap Presensi</h5>
+<div class="col-md-3">
 
-            <table class="table table-bordered table-striped">
+<select name="mode"
+class="form-control"
+onchange="this.form.submit()">
 
-                <thead class="text-center" style="background:#FA713F;color:white;">
+<option value="harian"
+{{ $mode=='harian'?'selected':'' }}>
+Harian
+</option>
 
-                <tr>
-                    <th>Nama</th>
-                    <th>Hadir</th>
-                    <th>Terlambat</th>
-                    <th>Ketidakhadiran</th>
-                    <th>Keterangan</th>
-                    <th>Persentase</th>
-                </tr>
+<option value="mingguan"
+{{ $mode=='mingguan'?'selected':'' }}>
+Mingguan
+</option>
 
-                </thead>
+<option value="bulanan"
+{{ $mode=='bulanan'?'selected':'' }}>
+Bulanan
+</option>
 
-                <tbody>
+</select>
 
-                @forelse($rekap as $r)
+</div>
 
-                <tr>
+<div class="col-md-3" id="tanggalField">
+    <input
+        type="date"
+        name="tanggal"
+        value="{{ $tanggal ?? '' }}"
+        class="form-control">
+</div>
 
-                    <td>{{ $r['nama'] }}</td>
+<div class="col-md-3" id="bulanField" style="display:none;">
+    <input
+        type="month"
+        name="bulan"
+        value="{{ $bulan ?? '' }}"
+        class="form-control">
+</div>
 
-                    <td class="text-center">
-                        {{ $r['hadir'] }}
-                    </td>
+<div class="col-md-2">
 
-                    <td class="text-center text-danger">
-                        {{ $r['telat'] }}
-                    </td>
+<button class="btn btn-dark w-100">
+Filter
+</button>
 
-                    <td class="text-center">
+</div>
 
-                    @if(is_null($r['ketidakhadiran']))
-                        0
-                    @else
-                        {{ $r['ketidakhadiran'] }}
-                    @endif
+</form>
 
-                    </td>
+<div>
 
-                    <td class="text-center">
+<a href="{{ route('laporan.presensi.exportPdf',request()->all()) }}"
+class="btn btn-danger">
 
-                        @if($r['keterangan'] == '0')
+<i class="bi bi-file-earmark-pdf-fill"></i>
 
-                            0
+Print PDF
 
-                        @elseif($r['keterangan'] == 'Disiplin')
+</a>
 
-                            <span class="badge bg-success">
-                                Disiplin
-                            </span>
+</div>
 
-                        @else
+</div>
 
-                            <span class="badge bg-danger">
-                                Kurang Disiplin
-                            </span>
+{{-- ================= HARIAN & MINGGUAN ================= --}}
 
-                        @endif
+@if($mode=='harian' || $mode=='mingguan')
 
-                    </td>
+<div class="table-responsive table-mobile">
 
-                <td class="text-center">
+<table class="table table-bordered table-striped">
 
-                    @if($r['persen'] === '-')
+<thead class="text-center"
+style="background:#FA713F;color:white;">
 
-                        -%
+<tr>
 
-                    @else
+<th>Nama</th>
+<th>Tanggal</th>
+<th>Masuk</th>
+<th>Keluar</th>
+<th>Status</th>
 
-                        {{ $r['persen'] }}%
+</tr>
 
-                    @endif
+</thead>
 
-                </td>
+<tbody>
 
-                </tr>
+@forelse($data as $d)
 
-                @empty
+<tr>
 
-                <tr>
-                    <td colspan="6" class="text-center">
-                        Tidak Ada Data
-                    </td>
-                </tr>
+<td>{{ $d->karyawan->nama ?? '' }}</td>
 
-                @endforelse
+<td class="text-center">
 
-                </tbody>
+{{ $d->tanggal ? \Carbon\Carbon::parse($d->tanggal)->format('d-m-Y') : '' }}
 
-            </table>
+</td>
 
-                <h5 class="mt-4">Laporan Insentif</h5>
+<td class="text-center">
 
-                <table class="table table-bordered">
+{{ $d->jam_masuk ?: '' }}
 
-                    <thead class="text-center" style="background:#28a745;color:white;">
+</td>
 
-                    <tr>
+<td class="text-center">
 
-                        <th>Nama</th>
-                        <th>Hadir</th>
-                        <th>Insentif</th>
+{{ $d->jam_keluar ?: '' }}
 
-                    </tr>
+</td>
 
-                    </thead>
+<td class="text-center">
 
-                    <tbody>
+@if($d->status=='Terlambat')
 
-                    @foreach($rekap as $r)
+<span class="badge bg-danger">
+Terlambat
+</span>
 
-                    <tr>
+@else
 
-                        <td>{{ $r['nama'] }}</td>
+<span class="badge bg-success">
+Tepat Waktu
+</span>
 
-                        <td class="text-center">
-                            {{ $r['hadir'] }}
-                        </td>
+@endif
 
-                        <td class="text-end">
-                            <span class="text-success fw-bold">
-                                Rp {{ number_format((float)$r['insentif'],0,',','.') }}
-                            </span>
-                        </td>
+</td>
 
-                    </tr>
+</tr>
 
-                    @endforeach
+@empty
 
-                    </tbody>
+<tr>
 
-                </table>
+<td colspan="5" class="text-center">
 
-            </div>
+Tidak Ada Data
 
-                {{-- MOBILE --}}
-                <div class="card-mobile">
+</td>
 
-            <h6 class="mb-3">
-            Rekap Presensi
-            </h6>
+</tr>
 
-            @forelse($rekap as $r)
+@endforelse
 
-            <div class="card-item">
+</tbody>
 
-            <h6>{{ $r['nama'] }}</h6>
+</table>
 
-            <p>
-            Hadir :
-            <strong>{{ $r['hadir'] }}</strong>
-            </p>
+</div>
 
-            <p>
-            Terlambat :
-            <span class="badge bg-danger">
+{{-- MOBILE --}}
+
+<div class="card-mobile">
+
+@forelse($data as $d)
+
+<div class="card-item">
+
+<h6>
+{{ $d->karyawan->nama ?? '' }}
+</h6>
+
+<p>
+
+Tanggal :
+
+{{ $d->tanggal ? \Carbon\Carbon::parse($d->tanggal)->format('d-m-Y') : '' }}
+
+</p>
+
+<p>
+
+Masuk :
+{{ $d->jam_masuk ?: '' }}
+
+</p>
+
+<p>
+
+Keluar :
+{{ $d->jam_keluar ?: '' }}
+
+</p>
+
+<p>
+
+Status :
+
+@if($d->status=='Terlambat')
+
+<span class="badge bg-danger">
+Terlambat
+</span>
+
+@else
+
+<span class="badge bg-success">
+Tepat Waktu
+</span>
+
+@endif
+
+</p>
+
+</div>
+
+@empty
+
+<div class="text-center">
+
+Tidak Ada Data
+
+</div>
+
+@endforelse
+
+</div>
+
+@endif
+
+{{-- ================= BULANAN ================= --}}
+
+@if($mode=='bulanan')
+
+{{-- ================= REKAP PRESENSI STAFF ================= --}}
+
+<div class="table-responsive table-mobile">
+
+<h5 class="mb-3">
+Rekap Presensi Staff
+</h5>
+
+<table class="table table-bordered table-striped">
+
+    <thead class="text-center"
+    style="background:#FA713F;color:white;">
+
+    <tr>
+
+        <th>Nama</th>
+        <th>Hadir</th>
+        <th>Terlambat</th>
+        <th>Ketidakhadiran</th>
+        <th>Keterangan</th>
+        <th>Persentase</th>
+        <th>Insentif</th>
+
+    </tr>
+
+    </thead>
+
+    <tbody>
+
+    @forelse($rekapStaff as $r)
+
+    <tr>
+
+        <td>{{ $r['nama'] }}</td>
+
+        <td class="text-center">
+            {{ $r['hadir'] }}
+        </td>
+
+        <td class="text-center text-danger">
             {{ $r['telat'] }}
-            </span>
-            </p>
+        </td>
 
-           <p>
-                Keterangan :
+        <td class="text-center">
+            {{ $r['ketidakhadiran'] }}
+        </td>
 
-                @if($r['keterangan'] == '0')
+        <td class="text-center">
 
-                    0
-
-                @elseif($r['keterangan'] == 'Disiplin')
+            @if($r['keterangan']=='Disiplin')
 
                 <span class="badge bg-success">
-                Disiplin
+                    Disiplin
                 </span>
 
-                @else
+            @else
 
                 <span class="badge bg-danger">
-                Kurang Disiplin
+                    Kurang Disiplin
                 </span>
-
-                @endif
-
-            </p>
-
-                <p>
-                Ketidakhadiran :
-
-                @if(is_null($r['ketidakhadiran']))
-                    0
-                @else
-                    {{ $r['ketidakhadiran'] }}
-                @endif
-
-                </p>
-
-           <p>
-                Persentase :
-
-                @if($r['persen'] === '-')
-
-                    -%
-
-                @else
-
-                    <span class="badge bg-primary">
-                        {{ $r['persen'] }}%
-                    </span>
-
-                @endif
-
-            </p>
-
-                <p>
-
-                    Insentif :
-
-                    <span class="badge bg-success">
-
-                    Rp {{ number_format((float)$r['insentif'],0,',','.') }}
-
-                    </span>
-
-                </p>
-
-            </div>
-
-            @empty
-
-            <div class="text-center">
-            Tidak da Data
-            </div>
-
-            @endforelse
-
-            </div>
-
-            {{-- GRAFIK --}}
-            <canvas id="chartPresensi"></canvas>
 
             @endif
 
-        </div>
+        </td>
+
+        <td class="text-center">
+            {{ $r['persen'] }}%
+        </td>
+
+        <td class="text-end pe-3 text-success fw-bold">
+            Rp {{ number_format($r['insentif'],0,',','.') }}
+        </td>
+
+    </tr>
+
+    @empty
+
+    <tr>
+
+        <td colspan="6" class="text-center">
+
+            Tidak Ada Data Staff
+
+        </td>
+
+    </tr>
+
+    @endforelse
+
+    </tbody>
+
+</table>
+
+
+
+{{-- ================= REKAP PRESENSI NON STAFF ================= --}}
+
+<h5 class="mt-5 mb-3">
+Rekap Presensi Non Staff
+</h5>
+
+<table class="table table-bordered table-striped">
+
+    <thead class="text-center"
+    style="background:#FA713F;color:white;">
+
+    <tr>
+
+        <th>Nama</th>
+        <th>Hadir</th>
+        <th>Terlambat</th>
+        <th>Ketidakhadiran</th>
+        <th>Keterangan</th>
+        <th>Persentase</th>
+        <th>Insentif</th>
+
+    </tr>
+
+    </thead>
+
+    <tbody>
+
+    @forelse($rekapNonStaff as $r)
+
+    <tr>
+
+        <td>{{ $r['nama'] }}</td>
+
+        <td class="text-center">
+            {{ $r['hadir'] }}
+        </td>
+
+        <td class="text-center text-danger">
+            {{ $r['telat'] }}
+        </td>
+
+        <td class="text-center">
+            {{ $r['ketidakhadiran'] }}
+        </td>
+
+        <td class="text-center">
+
+            @if($r['keterangan']=='Disiplin')
+
+                <span class="badge bg-success">
+                    Disiplin
+                </span>
+
+            @else
+
+                <span class="badge bg-danger">
+                    Kurang Disiplin
+                </span>
+
+            @endif
+
+        </td>
+
+        <td class="text-center">
+            {{ $r['persen'] }}%
+        </td>
+
+       <td class="text-end pe-3 text-success fw-bold">
+            Rp {{ number_format($r['insentif'],0,',','.') }}
+        </td>
+
+    </tr>
+
+    @empty
+
+    <tr>
+
+        <td colspan="6" class="text-center">
+
+            Tidak Ada Data Non Staff
+
+        </td>
+
+    </tr>
+
+    @endforelse
+
+    </tbody>
+
+</table>
+</div> {{-- table-responsive --}}
+
+{{-- ================= MOBILE ================= --}}
+<div class="card-mobile">
+
+    {{-- STAFF --}}
+    <h6 class="mb-3">Rekap Presensi Staff</h6>
+
+    @forelse($rekapStaff as $r)
+
+    <div class="card-item">
+
+        <h6>{{ $r['nama'] }}</h6>
+
+        <p>
+            Hadir :
+            <strong>{{ $r['hadir'] }}</strong>
+        </p>
+
+        <p>
+            Terlambat :
+            <span class="badge bg-danger">
+                {{ $r['telat'] }}
+            </span>
+        </p>
+
+        <p>
+            Ketidakhadiran :
+            {{ $r['ketidakhadiran'] }}
+        </p>
+
+        <p>
+            Keterangan :
+
+            @if($r['keterangan'] == 'Disiplin')
+                <span class="badge bg-success">
+                    Disiplin
+                </span>
+            @else
+                <span class="badge bg-danger">
+                    Kurang Disiplin
+                </span>
+            @endif
+
+        </p>
+
+        <p>
+            Persentase :
+
+            @if($r['persen'] == '-')
+                -
+            @else
+                <span class="badge bg-primary">
+                    {{ $r['persen'] }}%
+                </span>
+            @endif
+
+        </p>
+
+        <p>
+            Insentif :
+
+            <span class="badge bg-success">
+                Rp {{ number_format($r['insentif'],0,',','.') }}
+            </span>
+
+        </p>
+
     </div>
+
+    @empty
+
+    <div class="text-center text-muted">
+        Tidak ada data Staff
+    </div>
+
+    @endforelse
+
+
+    <hr class="my-4">
+
+
+    {{-- NON STAFF --}}
+    <h6 class="mb-3">Rekap Presensi Non Staff</h6>
+
+    @forelse($rekapNonStaff as $r)
+
+    <div class="card-item">
+
+        <h6>{{ $r['nama'] }}</h6>
+
+        <p>
+            Hadir :
+            <strong>{{ $r['hadir'] }}</strong>
+        </p>
+
+        <p>
+            Terlambat :
+            <span class="badge bg-danger">
+                {{ $r['telat'] }}
+            </span>
+        </p>
+
+        <p>
+            Ketidakhadiran :
+            {{ $r['ketidakhadiran'] }}
+        </p>
+
+        <p>
+            Keterangan :
+
+            @if($r['keterangan'] == 'Disiplin')
+                <span class="badge bg-success">
+                    Disiplin
+                </span>
+            @else
+                <span class="badge bg-danger">
+                    Kurang Disiplin
+                </span>
+            @endif
+
+        </p>
+
+        <p>
+            Persentase :
+
+            @if($r['persen'] == '-')
+                -
+            @else
+                <span class="badge bg-primary">
+                    {{ $r['persen'] }}%
+                </span>
+            @endif
+
+        </p>
+
+        <p>
+            Insentif :
+
+            <span class="badge bg-success">
+                Rp {{ number_format($r['insentif'],0,',','.') }}
+            </span>
+
+        </p>
+
+    </div>
+
+    @empty
+
+    <div class="text-center text-muted">
+        Tidak ada data Non Staff
+    </div>
+
+    @endforelse
+
 </div>
+
+{{-- Grafik --}}
+<div class="mt-4">
+    <canvas id="chartPresensi"></canvas>
+</div>
+
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+@if($mode=='bulanan')
 <script>
 
-@if($mode == 'bulanan')
+let hadir =
+{{ collect($rekapStaff)->sum('hadir') }} +
+{{ collect($rekapNonStaff)->sum('hadir') }};
 
-let hadir = {{ collect($rekap)->sum('hadir') }};
+let telat =
+{{ collect($rekapStaff)->sum('telat') }} +
+{{ collect($rekapNonStaff)->sum('telat') }};
 
-let telat = {{ collect($rekap)->sum('telat') }};
+let ketidakhadiran =
+{{ collect($rekapStaff)->sum('ketidakhadiran') }} +
+{{ collect($rekapNonStaff)->sum('ketidakhadiran') }};
 
-let ketidakhadiran = {{
-collect($rekap)->sum(function($item){
-    return is_null($item['ketidakhadiran'])
-        ? 0
-        : $item['ketidakhadiran'];
-})
-}};
-
-new Chart(document.getElementById('chartPresensi'),{
-    type:'bar',
-    data:{
-        labels:['Hadir','Terlambat','Ketidakhadiran'],
-        datasets:[{
-            label:'Statistik Presensi',
-            data:[hadir,telat,ketidakhadiran]
+new Chart(document.getElementById('chartPresensi'), {
+    type: 'bar',
+    data: {
+        labels: ['Hadir', 'Terlambat', 'Ketidakhadiran'],
+        datasets: [{
+            label: 'Statistik Presensi',
+            data: [
+                hadir,
+                telat,
+                ketidakhadiran
+            ]
         }]
     }
 });
 
-@endif
-
 </script>
+@endif
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {
 
-    let mode = document.querySelector('[name="mode"]').value;
-    let tanggalField = document.getElementById('tanggalField');
-    let bulanField = document.getElementById('bulanField');
+    const mode = document.querySelector('[name="mode"]');
+    const tanggalField = document.getElementById('tanggalField');
+    const bulanField = document.getElementById('bulanField');
 
     function toggle() {
-        if (mode === 'bulanan') {
+        if (mode.value === 'bulanan') {
             tanggalField.style.display = 'none';
             bulanField.style.display = 'block';
         } else {
@@ -473,12 +701,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
     toggle();
 
-    document.querySelector('[name="mode"]').addEventListener('change', function(){
-        mode = this.value;
-        toggle();
-    });
+    mode.addEventListener('change', toggle);
 
 });
 </script>
+
+@endif
 
 @endsection

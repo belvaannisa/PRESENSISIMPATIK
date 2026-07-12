@@ -224,133 +224,143 @@
 
 <table style="margin-bottom:15px;">
 
-<tr>
+    <tr>
+        <td width="25%"><b>Jumlah Karyawan</b></td>
+        <td>{{ count($rekapStaff) + count($rekapNonStaff) }} Orang</td>
+    </tr>
 
-<td width="25%">
-
-<b>Jumlah Karyawan</b>
-
-</td>
-
-<td>
-
-{{ count($rekap) }} Orang
-
-</td>
-
-</tr>
-
-<tr>
-
-<td>
-
-<b>Periode</b>
-
-</td>
-
-<td>
-
-{{ \Carbon\Carbon::parse($bulan)->translatedFormat('F Y') }}
-
-</td>
-
-</tr>
+    <tr>
+        <td><b>Periode</b></td>
+        <td>{{ \Carbon\Carbon::parse($bulan)->translatedFormat('F Y') }}</td>
+    </tr>
 
 </table>
 
+<h3 style="margin-bottom:10px;">Rekap Presensi Staff</h3>
+
+<table style="margin-bottom:25px;">
+
+    <thead>
+
+        <tr>
+            <th>Nama</th>
+            <th>Hadir</th>
+            <th>Terlambat</th>
+            <th>Ketidakhadiran</th>
+            <th>Keterangan</th>
+            <th>Persentase</th>
+            <th>Insentif</th>
+        </tr>
+
+    </thead>
+
+    <tbody>
+
+    @forelse($rekapStaff as $r)
+
+        <tr>
+
+            <td>{{ $r['nama'] }}</td>
+
+            <td class="text-center">{{ $r['hadir'] }}</td>
+
+            <td class="text-center">{{ $r['telat'] }}</td>
+
+            <td class="text-center">{{ $r['ketidakhadiran'] }}</td>
+
+            <td class="text-center">
+
+                @if($r['keterangan']=="Disiplin")
+                    <span class="tepat">Disiplin</span>
+                @else
+                    <span class="terlambat">Kurang Disiplin</span>
+                @endif
+
+            </td>
+
+            <td class="text-center">{{ $r['persen'] }}%</td>
+
+            <td class="text-right">
+                Rp {{ number_format($r['insentif'],0,',','.') }}
+            </td>
+
+        </tr>
+
+    @empty
+
+        <tr>
+            <td colspan="7" class="text-center">
+                Tidak ada data Staff.
+            </td>
+        </tr>
+
+    @endforelse
+
+    </tbody>
+
+</table>
+
+<h3 style="margin-bottom:10px;">Rekap Presensi Non Staff</h3>
+
 <table>
 
-<thead>
+    <thead>
 
-<tr>
+        <tr>
+            <th>Nama</th>
+            <th>Hadir</th>
+            <th>Terlambat</th>
+            <th>Ketidakhadiran</th>
+            <th>Keterangan</th>
+            <th>Persentase</th>
+            <th>Insentif</th>
+        </tr>
 
-<th>Nama</th>
+    </thead>
 
-<th>Hadir</th>
+    <tbody>
 
-<th>Terlambat</th>
+    @forelse($rekapNonStaff as $r)
 
-<th>Ketidakhadiran</th>
+        <tr>
 
-<th>Keterangan</th>
+            <td>{{ $r['nama'] }}</td>
 
-<th>Persentase</th>
+            <td class="text-center">{{ $r['hadir'] }}</td>
 
-<th>Insentif</th>
+            <td class="text-center">{{ $r['telat'] }}</td>
 
-</tr>
+            <td class="text-center">{{ $r['ketidakhadiran'] }}</td>
 
-</thead>
+            <td class="text-center">
 
-<tbody>
+                @if($r['keterangan']=="Disiplin")
+                    <span class="tepat">Disiplin</span>
+                @else
+                    <span class="terlambat">Kurang Disiplin</span>
+                @endif
 
-@foreach($rekap as $r)
+            </td>
 
-<tr>
+            <td class="text-center">{{ $r['persen'] }}%</td>
 
-<td>
+            <td class="text-right">
+                Rp {{ number_format($r['insentif'],0,',','.') }}
+            </td>
 
-{{ $r['nama'] }}
+        </tr>
 
-</td>
+    @empty
 
-<td class="text-center">
+        <tr>
+            <td colspan="7" class="text-center">
+                Tidak ada data Non Staff.
+            </td>
+        </tr>
 
-{{ $r['hadir'] }}
+    @endforelse
 
-</td>
-
-<td class="text-center">
-
-{{ $r['telat'] }}
-
-</td>
-
-<td class="text-center">
-
-{{ $r['ketidakhadiran'] }}
-
-</td>
-
-<td class="text-center">
-
-@if($r['keterangan']=="Disiplin")
-
-<span class="tepat">
-
-Disiplin
-
-</span>
-
-@else
-
-<span class="terlambat">
-
-Kurang Disiplin
-
-</span>
-
-@endif
-
-</td>
-
-<td class="text-center">
-
-{{ $r['persen'] }}%
-
-</td>
-
-<td class="text-right">
-
-Rp {{ number_format($r['insentif'],0,',','.') }}
-
-</td>
-
-</tr>
-
-@endforeach
-
-</tbody>
+    </tbody>
 
 </table>
 
