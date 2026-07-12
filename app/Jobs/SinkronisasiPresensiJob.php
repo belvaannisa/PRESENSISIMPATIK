@@ -83,15 +83,10 @@ public function __construct(
      */
    public function handle(): void
     {
-        /*
-        |--------------------------------------------------------------------------
-        | Cari Karyawan Berdasarkan PIN
-        |--------------------------------------------------------------------------
-        */
+        // 1. Cari Karyawan Berdasarkan PIN
         $karyawan = Karyawan::where('pin', $this->pin)->first();
 
         if (!$karyawan) {
-            // Jika PIN tidak ada, update semua log hari itu jadi unmatched
             PresensiLog::where('pin', $this->pin)
                 ->where('tanggal', $this->tanggal)
                 ->where('status_sinkron', 'pending')
@@ -103,13 +98,7 @@ public function __construct(
             return;
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Ambil SEMUA Scan Hari Itu (Pending & Matched)
-        |--------------------------------------------------------------------------
-        | Kita mengambil semua data tanpa filter 'pending' agar sistem 
-        | bisa membedakan scan paling awal dan paling akhir dengan akurat.
-        */
+        // 2. Ambil SEMUA Scan Hari Itu (Tanpa mempedulikan status pending/matched)
         $logs = PresensiLog::where('pin', $this->pin)
             ->where('tanggal', $this->tanggal)
             ->orderBy('jam')
@@ -123,11 +112,7 @@ public function __construct(
         DB::beginTransaction();
 
         try {
-            /*
-            |--------------------------------------------------------------------------
-            | Ambil / Buat Presensi
-            |--------------------------------------------------------------------------
-            */
+            // 3. Ambil atau Buat Presensi Baru
             $presensi = Presensi::firstOrNew([
                 'karyawan_id' => $karyawan->id,
                 'tanggal'     => $this->tanggal
@@ -138,76 +123,54 @@ public function __construct(
                 $presensi->sumber     = 'fingerprint';
             }
 
-            /*
-            |--------------------------------------------------------------------------
-            | Reset Nilai untuk Dihitung Ulang
-            |--------------------------------------------------------------------------
-            */
+            // Kosongkan dulu untuk dihitung ulang
             $presensi->jam_masuk  = null;
             $presensi->jam_keluar = null;
 
-            /*
-            |--------------------------------------------------------------------------
-            | Proses Semua Scan
-            |--------------------------------------------------------------------------
-            */
+            // 4. Cari Scan Pertama (Masuk) & Terakhir (Keluar)
             foreach ($logs as $scan) {
-                
-                // 1. Jam Masuk = Scan Paling Awal
+                // Jam Masuk: ambil waktu terkecil
                 if (empty($presensi->jam_masuk) || strtotime($scan->jam) < strtotime($presensi->jam_masuk)) {
                     $presensi->jam_masuk = $scan->jam;
                 }
-
-                // 2. Jam Keluar untuk Pegawai Tidak Terbatas
-                if ($karyawan->tipe_jam_keluar == config('jabatan.tidak_terbatas')) {
-                    if (empty($presensi->jam_keluar) || strtotime($scan->jam) > strtotime($presensi->jam_keluar)) {
-                        $presensi->jam_keluar = $scan->jam;
-                    }
-                } 
-                // 3. Jam Keluar untuk Pegawai Terbatas
-                else {
-                    if (strtotime($scan->jam) >= strtotime(config('jabatan.jam_keluar_default'))) {
-                        if (empty($presensi->jam_keluar) || strtotime($scan->jam) > strtotime($presensi->jam_keluar)) {
-                            $presensi->jam_keluar = $scan->jam;
-                        }
-                    }
+                
+                // Jam Keluar: ambil waktu terbesar
+                if (empty($presensi->jam_keluar) || strtotime($scan->jam) > strtotime($presensi->jam_keluar)) {
+                    $presensi->jam_keluar = $scan->jam;
                 }
             }
 
-            /*
-            |--------------------------------------------------------------------------
-            | Cegah Jam Keluar Sama Persis Dengan Jam Masuk
-            |--------------------------------------------------------------------------
-            */
-            if ($presensi->jam_keluar == $presensi->jam_masuk) {
-                $presensi->jam_keluar = null;
+            // 5. Validasi: Cegah Double Scan Pagi Dianggap Pulang
+            // Jika selisih antara scan pertama dan terakhir kurang dari 1 Jam (3600 detik),
+            // artinya dia belum absen pulang (hanya spam jari di mesin).
+            if (!empty($presensi->jam_masuk) && !empty($presensi->jam_keluar)) {
+                $selisihDetik = strtotime($presensi->jam_keluar) - strtotime($presensi->jam_masuk);
+                if ($selisihDetik < 3600) { 
+                    $presensi->jam_keluar = null;
+                }
             }
 
-            /*
-            |--------------------------------------------------------------------------
-            | Pegawai Terbatas Tidak Scan Pulang
-            |--------------------------------------------------------------------------
-            */
-            if ($karyawan->tipe_jam_keluar == config('jabatan.terbatas') && empty($presensi->jam_keluar)) {
-                $presensi->jam_keluar = null;
+            // 6. TERAPKAN ATURAN SESUAI PERMINTAAN
+            if (empty($presensi->jam_keluar)) { // <-- Jika statusnya BELUM absen pulang
+                
+                if ($karyawan->tipe_jam_keluar == config('jabatan.tidak_terbatas')) {
+                    // Jika Tidak Terbatas -> Tembak default 17:00
+                    $presensi->jam_keluar = config('jabatan.jam_keluar_default'); 
+                } else {
+                    // Jika Terbatas -> Biarkan null agar tampil strip (-)
+                    $presensi->jam_keluar = null; 
+                }
+
             }
 
-            /*
-            |--------------------------------------------------------------------------
-            | Status Kehadiran
-            |--------------------------------------------------------------------------
-            */
+            // 7. Tentukan Status Kehadiran (Terlambat / Tepat Waktu)
             $presensi->status = empty($presensi->jam_masuk) 
                 ? 'Belum Hadir' 
                 : (strtotime($presensi->jam_masuk) > strtotime(config('jabatan.jam_masuk_default')) ? 'Terlambat' : 'Tepat Waktu');
 
             $presensi->save();
 
-            /*
-            |--------------------------------------------------------------------------
-            | Update Semua Log Hari Itu
-            |--------------------------------------------------------------------------
-            */
+            // 8. Update Semua Log (Tandai sudah diproses)
             PresensiLog::whereIn('id', $logs->pluck('id'))
                 ->update([
                     'karyawan_id'    => $karyawan->id,
