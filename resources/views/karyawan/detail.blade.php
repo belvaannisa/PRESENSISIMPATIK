@@ -135,14 +135,14 @@
 
                             @elseif($presensi->status == 'Terlambat')
 
-                                <span class="badge bg-warning">
+                                <span class="badge bg-danger">
                                     Terlambat
                                 </span>
 
                             @else
 
-                                <span class="badge bg-danger">
-                                    Tidak Hadir
+                                <span class="badge bg-info">
+                                    Hadir
                                 </span>
 
                             @endif

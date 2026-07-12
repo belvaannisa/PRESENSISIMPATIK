@@ -17,6 +17,21 @@ class LaporanController extends Controller
     |--------------------------------------------------------------------------
     */
 
+    private $staffJabatan = [
+    'KEPALA CABANG',
+    'HAF',
+    'KEPALA GUDANG & KEPALA PERSONALIA',
+    'KASIR',
+    'KOORD AR',
+    'ADM AR',
+    'KORWIL BJB',
+    'COLLECTOR',
+    'KANVAS DRIVER',
+    'DRIVER GUDANG',
+    'HELPER',
+    'OFFICE BOY CABANG',
+];
+
     public function presensi(Request $request)
     {
         $mode = $request->mode ?? 'harian';
@@ -78,7 +93,8 @@ class LaporanController extends Controller
 
             $karyawans = Karyawan::orderBy('nama')->get();
 
-            $rekap = [];
+            $rekapStaff = [];
+            $rekapNonStaff = [];
 
             foreach ($karyawans as $k) {
 
@@ -140,30 +156,35 @@ class LaporanController extends Controller
                 // ===============================
                 $insentif = $nilaiDisiplin * 15000;
 
-                $rekap[] = [
+$item = [
 
-                    'nama' => $k->nama,
+    'nama' => $k->nama,
+    'hadir' => $hadir,
+    'telat' => $telat,
+    'ketidakhadiran' => $ketidakhadiran,
+    'keterangan' => $keterangan,
+    'persen' => $persen,
+    'insentif' => $insentif
 
-                    'hadir' => $hadir,
+];
 
-                    'telat' => $telat,
+if (in_array($k->jabatan, $this->staffJabatan)) {
 
-                    'ketidakhadiran' => $ketidakhadiran,
+    $rekapStaff[] = $item;
 
-                    'keterangan' => $keterangan,
+} else {
 
-                    'persen' => $persen,
+    $rekapNonStaff[] = $item;
 
-                    'insentif' => $insentif
-
-                ];
+}
             }
 
             return view('laporan.presensi.index', compact(
-                'rekap',
-                'mode',
-                'bulan'
-            ));
+    'rekapStaff',
+    'rekapNonStaff',
+    'mode',
+    'bulan'
+));
         }
     }
 
@@ -185,7 +206,8 @@ class LaporanController extends Controller
     |--------------------------------------------------------------------------
     */
     $data = collect();
-    $rekap = [];
+    $rekapStaff = [];
+    $rekapNonStaff = [];
 
     /*
     |--------------------------------------------------------------------------
@@ -290,23 +312,27 @@ class LaporanController extends Controller
         // ===============================
         $insentif = $nilaiDisiplin * 15000;
 
-        $rekap[] = [
+        $item = [
 
-            'nama' => $k->nama,
+    'nama' => $k->nama,
+    'hadir' => $hadir,
+    'telat' => $telat,
+    'ketidakhadiran' => $ketidakhadiran,
+    'keterangan' => $keterangan,
+    'persen' => $persen,
+    'insentif' => $insentif
 
-            'hadir' => $hadir,
+];
 
-            'telat' => $telat,
+if (in_array($k->jabatan, $this->staffJabatan)) {
 
-            'ketidakhadiran' => $ketidakhadiran,
+    $rekapStaff[] = $item;
 
-            'keterangan' => $keterangan,
+} else {
 
-            'persen' => $persen,
+    $rekapNonStaff[] = $item;
 
-            'insentif' => $insentif
-
-        ];
+}
     }
 }
 
@@ -327,14 +353,15 @@ class LaporanController extends Controller
     */
     $pdf = Pdf::loadView('laporan.presensi.pdf', [
 
-        'data' => $data,
-        'rekap' => $rekap,
+    'data' => $data,
+    'rekapStaff' => $rekapStaff,
+    'rekapNonStaff' => $rekapNonStaff,
 
-        'mode' => $mode,
-        'tanggal' => $tanggal,
-        'bulan' => $bulan
+    'mode' => $mode,
+    'tanggal' => $tanggal,
+    'bulan' => $bulan
 
-    ])->setPaper('a4', 'landscape');
+]);
 
     /*
     |--------------------------------------------------------------------------

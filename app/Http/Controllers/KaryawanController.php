@@ -163,7 +163,7 @@ class KaryawanController extends Controller
         'jabatan' => 'required',
         'no_hp' => 'nullable|string|max:20',
         'tanggal_masuk' => 'nullable|date',
-        'status_aktif' => 'nullable|boolean',
+        'status_aktif' => 'required|boolean',
         'jam_keluar' => 'nullable',
     ]);
 
@@ -181,8 +181,9 @@ class KaryawanController extends Controller
         'jabatan' => $request->jabatan,
         'no_hp' => $request->no_hp,
         'tanggal_masuk' => $request->tanggal_masuk,
-        'status_aktif' => $request->status_aktif,
-
+        'status_aktif' => $request->has('status_aktif')
+            ? $request->status_aktif
+            : $karyawan->status_aktif,
         'tipe_jam_keluar' => $tipeJamKeluar,
         'jam_keluar'      => $jamKeluar,
 
