@@ -158,21 +158,12 @@ public function importLocal()
         | Dispatch Queue Sinkronisasi
         |--------------------------------------------------------------------------
         */
+$this->dispatchPendingLogs();
 
-        $this->dispatchPendingLogs();
-
-        /*
-        |--------------------------------------------------------------------------
-        | Kirim Ke VPS
-        |--------------------------------------------------------------------------
-        */
-
-        $this->kirimDataPendingKeVps();
-
-        return back()->with(
-            'success',
-            'Auto Import berhasil.'
-        );
+return back()->with(
+    'success',
+    'Import berhasil. Data sedang diproses di background.'
+);
 
     } catch (\Throwable $e) {
 
@@ -219,21 +210,12 @@ public function importLocal()
         | Dispatch Queue Sinkronisasi
         |--------------------------------------------------------------------------
         */
+$this->dispatchPendingLogs();
 
-        $this->dispatchPendingLogs();
-
-        /*
-        |--------------------------------------------------------------------------
-        | Kirim Data Yang Belum Terkirim Ke VPS
-        |--------------------------------------------------------------------------
-        */
-
-        $this->kirimDataPendingKeVps();
-
-        return back()->with(
-            'success',
-            'Import berhasil.'
-        );
+return back()->with(
+    'success',
+    'Import berhasil. Data sedang diproses di background.'
+);
 
     } catch (\Throwable $e) {
 
@@ -973,144 +955,8 @@ private function tentukanStatus($jamMasuk): string
         'Tepat Waktu';
 }
 
-    private function kirimKeVps(PresensiLog $log): void
-{
-    try {
-
-        $response = Http::retry(3, 500)
-
-            ->timeout(30)
-
-            ->withHeaders([
-
-                'X-API-KEY' => env('FINGERPRINT_API_KEY')
-
-            ])
-
-            ->post(
-
-                env('SERVER_API') . '/api/presensi/upload',
-
-                [
-
-                    'absen_list' => [
-
-                        [
-
-                            'pin'      => $log->pin,
-
-                            'nama'     => $log->nama,
-
-                            'tanggal'  => \Carbon\Carbon::parse(
-                                $log->tanggal
-                            )->format('d/m/Y'),
-
-                            'jam'      => $log->jam
-
-                        ]
-
-                    ]
-
-                ]
-
-            );
-
-        if ($response->successful()) {
-
-            $log->update([
-
-                'status_server' => 'success',
-
-                'updated_at'    => now()
-
-            ]);
-
-            return;
-
-        }
-
-        $log->update([
-
-            'status_server' => 'failed',
-
-            'updated_at'    => now()
-
-        ]);
-
-        Log::error(
-
-            'Upload VPS gagal',
-
-            [
-
-                'status' => $response->status(),
-
-                'body'   => $response->body()
-
-            ]
-
-        );
-
-    } catch (\Throwable $e) {
-
-        $log->update([
-
-            'status_server' => 'failed',
-
-            'updated_at'    => now()
-
-        ]);
-
-        Log::error($e);
-
-    }
-}
-  private function kirimDataPendingKeVps(): void
-{
-    PresensiLog::where(
-
-            'status_sinkron',
-
-            'matched'
-
-        )
-
-        ->where(function ($query) {
-
-            $query
-
-                ->whereNull('status_server')
-
-                ->orWhere(
-
-                    'status_server',
-
-                    'pending'
-
-                )
-
-                ->orWhere(
-
-                    'status_server',
-
-                    'failed'
-
-                );
-
-        })
-
-        ->orderBy('id')
-
-        ->chunkById(100, function ($logs) {
-
-            foreach ($logs as $log) {
-
-                $this->kirimKeVps($log);
-
-            }
-
-        });
-}
+  
+  
     private function generateRecordHash($pin, $tanggal, $jam)
     {
         return hash(

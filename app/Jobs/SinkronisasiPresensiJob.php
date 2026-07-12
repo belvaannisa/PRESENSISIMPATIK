@@ -13,7 +13,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-
+use Illuminate\Support\Facades\Http;
 
 class SinkronisasiPresensiJob implements ShouldQueue
 {
@@ -40,7 +40,7 @@ class SinkronisasiPresensiJob implements ShouldQueue
 
 public $backoff = 10;
 
-public $timeout = 120;
+public $timeout = 120; 
 
 
     /**
@@ -128,15 +128,14 @@ public $timeout = 120;
             | Simpan Presensi
             |--------------------------------------------------------------------------
             */
-            $presensi->save();
+           $presensi->save();
 
+$this->updateLog(
+    $log,
+    $karyawan
+);
 
-            /*
-            |--------------------------------------------------------------------------
-            | Update Presensi Log
-            |--------------------------------------------------------------------------
-            */
-            $this->updateLog($log, $karyawan);
+$this->kirimKeVps($log);
         });
     }
 
@@ -176,7 +175,98 @@ public $timeout = 120;
         return $log;
     }
 
+  private function kirimKeVps(PresensiLog $log): void
+{
+    try {
 
+        $response = Http::retry(3, 500)
+
+            ->timeout(30)
+
+            ->withHeaders([
+
+                'X-API-KEY' => env('FINGERPRINT_API_KEY')
+
+            ])
+
+            ->post(
+
+                env('SERVER_API') . '/api/presensi/upload',
+
+                [
+
+                    'absen_list' => [
+
+                        [
+
+                            'pin'      => $log->pin,
+
+                            'nama'     => $log->nama,
+
+                            'tanggal'  => \Carbon\Carbon::parse(
+                                $log->tanggal
+                            )->format('d/m/Y'),
+
+                            'jam'      => $log->jam
+
+                        ]
+
+                    ]
+
+                ]
+
+            );
+
+        if ($response->successful()) {
+
+            $log->update([
+
+                'status_server' => 'success',
+
+                'updated_at'    => now()
+
+            ]);
+
+            return;
+
+        }
+
+        $log->update([
+
+            'status_server' => 'failed',
+
+            'updated_at'    => now()
+
+        ]);
+
+        Log::error(
+
+            'Upload VPS gagal',
+
+            [
+
+                'status' => $response->status(),
+
+                'body'   => $response->body()
+
+            ]
+
+        );
+
+    } catch (\Throwable $e) {
+
+        $log->update([
+
+            'status_server' => 'failed',
+
+            'updated_at'    => now()
+
+        ]);
+
+        Log::error($e);
+
+    }
+}
     /*
     |--------------------------------------------------------------------------
     | Cari Karyawan Berdasarkan PIN
