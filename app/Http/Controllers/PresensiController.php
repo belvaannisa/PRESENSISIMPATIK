@@ -1,19 +1,16 @@
 <?php
+
 namespace App\Http\Controllers;
 
 use App\Models\Karyawan;
 use App\Models\Presensi;
 use App\Models\PresensiLog;
-
+use App\Jobs\SinkronisasiPresensiJob;
 use Illuminate\Http\Request;
-
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-
 use PhpOffice\PhpSpreadsheet\IOFactory;
-
-use Throwable;
 
 class PresensiController extends Controller
 {
@@ -114,149 +111,83 @@ public function index(Request $request)
         )
     );
 }
-
-   public function importLocal()
+public function importLocal()
 {
     $incomingPath = storage_path('app/fingerprint/incoming');
     $processedPath = storage_path('app/fingerprint/processed');
 
-    /*
-    |--------------------------------------------------------------------------
-    | Validasi Folder
-    |--------------------------------------------------------------------------
-    */
-
     if (!is_dir($incomingPath)) {
-
         return back()->with(
             'error',
             'Folder incoming tidak ditemukan.'
         );
-
     }
-
-    if (!is_dir($processedPath)) {
-
-        mkdir(
-            $processedPath,
-            0755,
-            true
-        );
-
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Ambil Seluruh File
-    |--------------------------------------------------------------------------
-    */
 
     $files = glob(
-
         $incomingPath . '/*.{csv,xls,xlsx}',
-
         GLOB_BRACE
-
     );
 
     if (empty($files)) {
-
         return back()->with(
-
             'error',
-
-            'Tidak ada file fingerprint.'
-
+            'Tidak ada file presensi.'
         );
-
     }
 
-    $jumlahFile = 0;
+    try {
 
-    /*
-    |--------------------------------------------------------------------------
-    | Loop File
-    |--------------------------------------------------------------------------
-    */
+        foreach ($files as $file) {
 
-    foreach ($files as $file) {
-
-        DB::beginTransaction();
-
-        try {
-
-            /*
-            |--------------------------------------------------------------------------
-            | Baca File
-            |--------------------------------------------------------------------------
-            */
+            DB::beginTransaction();
 
             $rows = $this->bacaFile($file);
-
-            /*
-            |--------------------------------------------------------------------------
-            | Simpan Ke Presensi Log
-            |--------------------------------------------------------------------------
-            */
 
             $this->prosesRows($rows);
 
             DB::commit();
 
-            /*
-            |--------------------------------------------------------------------------
-            | Pindahkan File
-            |--------------------------------------------------------------------------
-            */
-
             rename(
-
                 $file,
-
                 $processedPath . '/' . basename($file)
-
             );
-
-            $jumlahFile++;
-
         }
 
-        catch (\Throwable $e) {
+        /*
+        |--------------------------------------------------------------------------
+        | Dispatch Queue Sinkronisasi
+        |--------------------------------------------------------------------------
+        */
 
-            DB::rollBack();
+        $this->dispatchPendingLogs();
 
-            Log::error($e);
+        /*
+        |--------------------------------------------------------------------------
+        | Kirim Ke VPS
+        |--------------------------------------------------------------------------
+        */
 
-        }
+        $this->kirimDataPendingKeVps();
 
+        return back()->with(
+            'success',
+            'Auto Import berhasil.'
+        );
+
+    } catch (\Throwable $e) {
+
+        DB::rollBack();
+
+        Log::error($e);
+
+        return back()->with(
+            'error',
+            $e->getMessage()
+        );
     }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Sinkronisasi Lokal
-    |--------------------------------------------------------------------------
-    */
-
-    $this->sinkronisasiPresensi();
-
-    /*
-    |--------------------------------------------------------------------------
-    | Upload Ke VPS
-    |--------------------------------------------------------------------------
-    */
-
-    $this->kirimDataPendingKeVps();
-
-    return back()->with(
-
-        'success',
-
-        "{$jumlahFile} file berhasil diproses."
-
-    );
 }
 
-    public function upload(Request $request)
+ public function upload(Request $request)
 {
     $request->validate([
         'file' => 'required|mimes:csv,txt,xls,xlsx'
@@ -273,11 +204,31 @@ public function index(Request $request)
             $file->getClientOriginalExtension()
         );
 
+        /*
+        |--------------------------------------------------------------------------
+        | Simpan Ke Presensi Log
+        |--------------------------------------------------------------------------
+        */
+
         $this->prosesRows($rows);
 
         DB::commit();
 
-        $this->sinkronisasiPresensi();
+        /*
+        |--------------------------------------------------------------------------
+        | Dispatch Queue Sinkronisasi
+        |--------------------------------------------------------------------------
+        */
+
+        $this->dispatchPendingLogs();
+
+        /*
+        |--------------------------------------------------------------------------
+        | Kirim Data Yang Belum Terkirim Ke VPS
+        |--------------------------------------------------------------------------
+        */
+
+        $this->kirimDataPendingKeVps();
 
         return back()->with(
             'success',
@@ -294,64 +245,130 @@ public function index(Request $request)
             'error',
             $e->getMessage()
         );
+    }
+}   
+
+    private function validasiBaris(array $row, int $index): bool
+{
+    /*
+    |--------------------------------------------------------------------------
+    | Minimal Kolom
+    |--------------------------------------------------------------------------
+    */
+
+    if (count($row) < 8) {
+
+        Log::warning(
+            "Baris {$index} dilewati. Jumlah kolom tidak sesuai."
+        );
+
+        return false;
 
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | PIN Kosong
+    |--------------------------------------------------------------------------
+    */
+
+    if (empty(trim($row[2]))) {
+
+        Log::warning(
+            "Baris {$index} dilewati. PIN kosong."
+        );
+
+        return false;
+
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Nama Kosong
+    |--------------------------------------------------------------------------
+    */
+
+    if (empty(trim($row[1]))) {
+
+        Log::warning(
+            "Baris {$index} dilewati. Nama kosong."
+        );
+
+        return false;
+
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Tanggal Scan Kosong
+    |--------------------------------------------------------------------------
+    */
+
+    if (empty(trim($row[3]))) {
+
+        Log::warning(
+            "Baris {$index} dilewati. Tanggal/Jam kosong."
+        );
+
+        return false;
+
+    }
+
+    return true;
 }
 
-    private function validasiBaris(array $row, int $index)
-    {
-        if (count($row) < 8) {
+   private function bacaFile($filePath, $extension = null): array
+{
+    /*
+    |--------------------------------------------------------------------------
+    | Ambil Extension Jika Tidak Dikirim
+    |--------------------------------------------------------------------------
+    */
 
-            Log::warning(
-                "Baris {$index} dilewati karena kolom tidak lengkap."
-            );
+    if (!$extension) {
 
-            return false;
-        }
+        $extension = strtolower(
 
-        if (
-            trim($row[1]) == '' ||
-            trim($row[2]) == '' ||
-            trim($row[3]) == ''
-        ) {
+            pathinfo(
 
-            Log::warning(
-                "Baris {$index} kosong."
-            );
+                $filePath,
 
-            return false;
-        }
+                PATHINFO_EXTENSION
 
-        return true;
+            )
+
+        );
+
     }
 
-    private function bacaFile($filePath, $extension = null)
-    {
-        if (!$extension) {
+    /*
+    |--------------------------------------------------------------------------
+    | Excel
+    |--------------------------------------------------------------------------
+    */
 
-            $extension = strtolower(
+    if (in_array($extension, ['xls', 'xlsx'])) {
 
-                pathinfo(
-                    $filePath,
-                    PATHINFO_EXTENSION
-                )
+        $spreadsheet = IOFactory::load($filePath);
 
+        return $spreadsheet
+            ->getActiveSheet()
+            ->toArray(
+                null,
+                true,
+                true,
+                false
             );
-        }
 
-        if (in_array($extension, ['xls', 'xlsx'])) {
+    }
 
-            $spreadsheet = IOFactory::load($filePath);
+    /*
+    |--------------------------------------------------------------------------
+    | CSV
+    |--------------------------------------------------------------------------
+    */
 
-            return $spreadsheet
-                ->getActiveSheet()
-                ->toArray(
-                    null,
-                    true,
-                    true,
-                    false
-                );
-        }
+    if ($extension == 'csv' || $extension == 'txt') {
 
         return array_map(
 
@@ -372,253 +389,341 @@ public function index(Request $request)
             file($filePath)
 
         );
+
     }
 
-    private function prosesRows($rows)
-    {
-        if (empty($rows) || count($rows) <= 1) {
-            return;
+    /*
+    |--------------------------------------------------------------------------
+    | Format Tidak Didukung
+    |--------------------------------------------------------------------------
+    */
+
+    throw new \Exception(
+        'Format file tidak didukung.'
+    );
+}
+    private function dispatchPendingLogs(): void
+{
+    PresensiLog::where('status_sinkron', 'pending')
+        ->orderBy('id')
+        ->chunkById(200, function ($logs) {
+
+            foreach ($logs as $log) {
+
+                SinkronisasiPresensiJob::dispatch($log->id);
+
+            }
+
+        });
+}
+
+private function prosesRows(array $rows): void
+{
+    if (empty($rows) || count($rows) <= 1) {
+        return;
+    }
+
+    $karyawanMap = Karyawan::select(
+            'id',
+            'pin'
+        )
+        ->get()
+        ->keyBy(function ($item) {
+            return trim($item->pin);
+        });
+
+    $insertData = [];
+
+    foreach ($rows as $index => $row) {
+
+        if ($index === 0) {
+            continue;
         }
 
-        // Ambil seluruh data karyawan sekali saja
-        $karyawanMap = Karyawan::select('id', 'pin')
-            ->get()
-            ->keyBy(function ($item) {
-                return trim($item->pin);
-            });
+        if (!$this->validasiBaris($row, $index)) {
+            continue;
+        }
 
-        $insertData = [];
+        try {
 
-        foreach ($rows as $index => $row) {
-
-            // Skip Header
-            if ($index == 0) {
-                continue;
-            }
-
-            if (!$this->validasiBaris($row, $index)) {
-                continue;
-            }
-
-            try {
-
-                $datetime = new \DateTime(trim($row[3]));
-
-            } catch (\Throwable $e) {
-
-                continue;
-
-            }
-
-            $pin = trim($row[2]);
-            $nama = trim($row[1]);
-
-            $tanggal = $datetime->format('Y-m-d');
-            $jam = $datetime->format('H:i:s');
-
-            $verify = trim($row[6]);
-
-            // Cari karyawan dari RAM (bukan query DB)
-            $karyawan = $karyawanMap->get($pin);
-
-            // Generate Record Hash
-            $recordHash = $this->generateRecordHash(
-                $pin,
-                $tanggal,
-                $jam
+            $datetime = new \DateTime(
+                trim($row[3])
             );
 
-            $insertData[] = [
+        } catch (\Throwable $e) {
 
-                'record_hash'     => $recordHash,
+            Log::warning(
+                "Baris {$index} gagal diparse."
+            );
 
-                'pin'             => $pin,
+            continue;
+        }
 
-                'nama'            => $nama,
+        $pin = trim($row[2]);
 
-                'tanggal'         => $tanggal,
+        $nama = strtoupper(
+            trim($row[1])
+        );
 
-                'jam'             => $jam,
+        $tanggal = $datetime->format('Y-m-d');
 
-                'verify_code'     => $verify,
+        $jam = $datetime->format('H:i:s');
 
-                'karyawan_id'     => $karyawan?->id,
+        $verify = trim($row[6]);
 
-                'status_sinkron'  => $karyawan
-                    ? 'matched'
-                    : 'unmatched',
+        $recordHash = $this->generateRecordHash(
+            $pin,
+            $tanggal,
+            $jam
+        );
 
-                'status_server'   => 'pending',
+        $karyawan = $karyawanMap->get($pin);
 
-                'catatan'         => $karyawan
-                    ? 'PIN ditemukan'
-                    : 'PIN tidak ditemukan',
+        $insertData[] = [
 
-                'created_at'      => now(),
+            'record_hash'    => $recordHash,
 
-                'updated_at'      => now(),
+            'pin'            => $pin,
 
-            ];
+            'nama'           => $nama,
 
-            // Batch Insert setiap 1000 data
-            if (count($insertData) >= 1000) {
+            'tanggal'        => $tanggal,
 
-               PresensiLog::upsert(
+            'jam'            => $jam,
+
+            'verify_code'    => $verify,
+
+            'karyawan_id'    => $karyawan?->id,
+
+            'status_sinkron' => $karyawan
+                ? 'pending'
+                : 'unmatched',
+
+            'status_server'  => 'pending',
+
+            'catatan'        => $karyawan
+                ? 'Menunggu sinkronisasi'
+                : 'PIN tidak ditemukan',
+
+            'created_at'     => now(),
+
+            'updated_at'     => now()
+
+        ];
+
+        if (count($insertData) >= 1000) {
+
+            PresensiLog::upsert(
 
                 $insertData,
 
                 ['record_hash'],
 
                 [
+
                     'pin',
+
                     'nama',
+
                     'tanggal',
+
                     'jam',
+
                     'verify_code',
+
                     'karyawan_id',
+
                     'status_sinkron',
+
                     'status_server',
+
                     'catatan',
+
                     'updated_at'
+
                 ]
 
             );
-                $insertData = [];
-            }
+
+            $insertData = [];
+
         }
 
-        // Insert sisa data
-        
-        if (!empty($insertData)) {
+    }
 
-            PresensiLog::upsert(
+    if (!empty($insertData)) {
+
+        PresensiLog::upsert(
 
             $insertData,
 
             ['record_hash'],
 
             [
+
                 'pin',
+
                 'nama',
+
                 'tanggal',
+
                 'jam',
+
                 'verify_code',
+
                 'karyawan_id',
+
                 'status_sinkron',
+
                 'status_server',
+
                 'catatan',
+
                 'updated_at'
+
             ]
 
         );
 
-        }
     }
 
-    private function cariKaryawan($log)
-    {
-        return Karyawan::where(
-            'pin',
-            $log->pin
-        )->first();
+
+}
+
+  private function prosesLogKePresensi(
+    Karyawan $karyawan,
+    $logs
+): void {
+
+    /*
+    |--------------------------------------------------------------------------
+    | Urutkan Scan Berdasarkan Jam
+    |--------------------------------------------------------------------------
+    */
+
+    $logs = $logs
+        ->sortBy('jam')
+        ->values();
+
+    if ($logs->isEmpty()) {
+        return;
     }
 
-    private function tentukanStatus($jamMasuk)
-    {
-        return strtotime($jamMasuk)
-            >
+    /*
+    |--------------------------------------------------------------------------
+    | Ambil / Buat Presensi
+    |--------------------------------------------------------------------------
+    */
 
-            strtotime('08:15:00')
+    $presensi = Presensi::firstOrNew([
 
-            ?
+        'karyawan_id' => $karyawan->id,
 
-            'Terlambat'
+        'tanggal'     => $logs->first()->tanggal
 
-            :
+    ]);
 
-            'Tepat Waktu';
+    if (!$presensi->exists) {
+
+        $presensi->keterangan = 'Hadir';
+
+        $presensi->sumber = 'fingerprint';
+
     }
 
-    private function prosesLogKePresensi($karyawan, $logs)
-    {
-        $logs = $logs->sortBy('jam')->values();
+    /*
+    |--------------------------------------------------------------------------
+    | Proses Semua Scan
+    |--------------------------------------------------------------------------
+    */
 
-        $jumlahScan = $logs->count();
-
-        $scanMasuk = null;
-        $scanKeluar = null;
+    foreach ($logs as $log) {
 
         /*
         |--------------------------------------------------------------------------
-        | Jika terdapat 2 scan atau lebih
+        | Jam Masuk
         |--------------------------------------------------------------------------
         */
 
-        if ($jumlahScan >= 2) {
+        if (
 
-            $scanMasuk = $logs->first();
+            empty($presensi->jam_masuk)
 
-            $scanTerakhir = $logs->last();
+            ||
 
-            // Jika scan terakhir berbeda minimal 5 menit
-            // maka dianggap jam keluar.
+            strtotime($log->jam)
+
+            <
+
+            strtotime($presensi->jam_masuk)
+
+        ) {
+
+            $presensi->jam_masuk = $log->jam;
+
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Jam Keluar
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+
+            $karyawan->tipe_jam_keluar
+
+            ==
+
+            config('jabatan.tidak_terbatas')
+
+        ) {
+
             if (
-                strtotime($scanTerakhir->jam) -
-                strtotime($scanMasuk->jam) >= 300
+
+                empty($presensi->jam_keluar)
+
+                ||
+
+                strtotime($log->jam)
+
+                >
+
+                strtotime($presensi->jam_keluar)
+
             ) {
 
-                $scanKeluar = $scanTerakhir;
+                $presensi->jam_keluar = $log->jam;
 
             }
 
-        }
+        } else {
 
-        /*
-        |--------------------------------------------------------------------------
-        | Jika hanya ada 1 scan
-        |--------------------------------------------------------------------------
-        */
+            if (
 
-        else {
+                strtotime($log->jam)
 
-            $scan = $logs->first();
+                >=
 
-            // Hari :
-            // 1 = Senin
-            // ...
-            // 7 = Minggu
-            $hari = date('N', strtotime($scan->tanggal));
+                strtotime(config('jabatan.jam_keluar_default'))
 
-            /*
-            |--------------------------------------------------------------------------
-            | Hari Minggu
-            |--------------------------------------------------------------------------
-            | Scan tunggal hari Minggu dianggap scan pulang
-            */
+            ) {
 
-            if ($hari == 7) {
+                if (
 
-                $scanKeluar = $scan;
+                    empty($presensi->jam_keluar)
 
-            }
+                    ||
 
-            /*
-            |--------------------------------------------------------------------------
-            | Senin - Sabtu
-            |--------------------------------------------------------------------------
-            */
+                    strtotime($log->jam)
 
-            else {
+                    >
 
-                if ($scan->jam < '12:30:00') {
+                    strtotime($presensi->jam_keluar)
 
-                    // Scan masuk
-                    $scanMasuk = $scan;
+                ) {
 
-                } else {
-
-                    // Scan keluar
-                    $scanKeluar = $scan;
+                    $presensi->jam_keluar = $log->jam;
 
                 }
 
@@ -626,138 +731,190 @@ public function index(Request $request)
 
         }
 
-        $presensi = Presensi::firstOrNew([
-            'karyawan_id' => $karyawan->id,
-            'tanggal' => $logs->first()->tanggal,
-        ]);
-        /*
-        |--------------------------------------------------------------------------
-        | Jam Masuk
-        |--------------------------------------------------------------------------
-        */
-
-        $presensi->jam_masuk =
-        $scanMasuk
-            ? $scanMasuk->jam
-            : null;
-
-        /*
-        |--------------------------------------------------------------------------
-        | Pegawai Terbatas / Tidak Terbatas
-        |--------------------------------------------------------------------------
-        */
-
-        $tidakTerbatas =
-            $karyawan->tipe_jam_keluar ==
-            config('jabatan.tidak_terbatas');
-
-        if ($scanKeluar) {
-
-            $presensi->jam_keluar = $scanKeluar->jam;
-
-        } else {
-
-            if ($tidakTerbatas && $scanMasuk) {
-
-                $presensi->jam_keluar =
-                    config('jabatan.jam_keluar_default');
-
-            } else {
-
-                $presensi->jam_keluar = null;
-
-            }
-
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Status
-        |--------------------------------------------------------------------------
-        */
-
-            if ($scanMasuk) {
-
-                $presensi->status =
-                    $this->tentukanStatus($scanMasuk->jam);
-
-            } else {
-
-                $presensi->status = '-';
-
-            }
-        /*
-        |--------------------------------------------------------------------------
-        | Keterangan
-        |--------------------------------------------------------------------------
-        */
-
-       if ($scanMasuk || $scanKeluar) {
-
-            $presensi->keterangan = 'Hadir';
-
-        } else {
-
-            $presensi->keterangan = null;
-
-        }
-
-        $presensi->save();
     }
 
-private function sinkronisasiPresensi()
+    /*
+    |--------------------------------------------------------------------------
+    | Pegawai Terbatas Tidak Absen Pulang
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+
+        $karyawan->tipe_jam_keluar
+
+        ==
+
+        config('jabatan.terbatas')
+
+        &&
+
+        empty($presensi->jam_keluar)
+
+    ) {
+
+        $presensi->jam_keluar = null;
+
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Status
+    |--------------------------------------------------------------------------
+    */
+
+    $presensi->status = $this->tentukanStatus(
+        $presensi->jam_masuk
+    );
+
+    /*
+    |--------------------------------------------------------------------------
+    | Simpan
+    |--------------------------------------------------------------------------
+    */
+
+    $presensi->save();
+}
+
+private function sinkronisasiPresensi(): void
 {
-    $logs = PresensiLog::where('status_sinkron', 'matched')
-        ->where('catatan', '!=', 'Presensi berhasil dibuat')
+    /*
+    |--------------------------------------------------------------------------
+    | Ambil Log Pending
+    |--------------------------------------------------------------------------
+    */
+
+    $logs = PresensiLog::where(
+
+            'status_sinkron',
+
+            'pending'
+
+        )
+
         ->orderBy('tanggal')
+
         ->orderBy('jam')
+
         ->get();
 
     if ($logs->isEmpty()) {
+
         return;
+
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Ambil Semua Karyawan Sekali
+    |--------------------------------------------------------------------------
+    */
+
     $karyawanMap = Karyawan::whereIn(
+
             'id',
-            $logs->pluck('karyawan_id')->unique()
+
+            $logs->pluck('karyawan_id')
+                ->filter()
+                ->unique()
+
         )
+
         ->get()
+
         ->keyBy('id');
 
     DB::beginTransaction();
 
     try {
 
-        $groupLogs = $logs->groupBy(function ($item) {
+        /*
+        |--------------------------------------------------------------------------
+        | Group Per Karyawan + Tanggal
+        |--------------------------------------------------------------------------
+        */
 
-            return $item->karyawan_id . '_' . $item->tanggal;
+        $groupLogs = $logs->groupBy(function ($log) {
+
+            return
+
+                $log->karyawan_id
+
+                . '_'
+
+                . $log->tanggal;
 
         });
 
         foreach ($groupLogs as $group) {
 
             $karyawan = $karyawanMap->get(
+
                 $group->first()->karyawan_id
+
             );
 
             if (!$karyawan) {
+
+                PresensiLog::whereIn(
+
+                    'id',
+
+                    $group->pluck('id')
+
+                )->update([
+
+                    'status_sinkron' => 'unmatched',
+
+                    'catatan' => 'PIN tidak ditemukan',
+
+                    'updated_at' => now()
+
+                ]);
+
                 continue;
+
             }
 
+            /*
+            |--------------------------------------------------------------------------
+            | Sinkronkan Menjadi Presensi
+            |--------------------------------------------------------------------------
+            */
+
             $this->prosesLogKePresensi(
+
                 $karyawan,
+
                 $group
+
             );
+
+            /*
+            |--------------------------------------------------------------------------
+            | Update Status Log
+            |--------------------------------------------------------------------------
+            */
+
+            PresensiLog::whereIn(
+
+                'id',
+
+                $group->pluck('id')
+
+            )->update([
+
+                'karyawan_id' => $karyawan->id,
+
+                'status_sinkron' => 'matched',
+
+                'catatan' => 'Sinkronisasi berhasil',
+
+                'updated_at' => now()
+
+            ]);
+
         }
-
-        PresensiLog::whereIn(
-            'id',
-            $logs->pluck('id')
-        )->update([
-
-            'catatan' => 'Presensi berhasil dibuat'
-
-        ]);
 
         DB::commit();
 
@@ -770,129 +927,190 @@ private function sinkronisasiPresensi()
     }
 }
 
-    private function kirimKeVps($log)
-    {
-        try {
 
-            $response = Http::retry(3,500)
+private function tentukanStatus($jamMasuk): string
+{
+    /*
+    |--------------------------------------------------------------------------
+    | Belum Ada Jam Masuk
+    |--------------------------------------------------------------------------
+    */
 
-                ->timeout(10)
+    if (empty($jamMasuk)) {
 
-                ->withHeaders([
+        return 'Belum Hadir';
 
-                    'X-API-KEY'=>env('FINGERPRINT_API_KEY')
+    }
 
-                ])
+    /*
+    |--------------------------------------------------------------------------
+    | Ambil Jam Masuk Default Dari Config
+    |--------------------------------------------------------------------------
+    */
 
-                ->post(
+    $jamDefault = config(
+        'jabatan.jam_masuk_default'
+    );
 
-                    env('SERVER_API').'/api/presensi/upload',
+    /*
+    |--------------------------------------------------------------------------
+    | Tentukan Status
+    |--------------------------------------------------------------------------
+    */
 
-                    [
+    return strtotime($jamMasuk)
 
-                        'pin'=>$log->pin,
+        >
 
-                        'nama'=>$log->nama,
+        strtotime($jamDefault)
 
-                        'tanggal'=>$log->tanggal,
+        ?
 
-                        'jam'=>$log->jam,
+        'Terlambat'
 
-                        'verify_code'=>$log->verify_code
+        :
+
+        'Tepat Waktu';
+}
+
+    private function kirimKeVps(PresensiLog $log): void
+{
+    try {
+
+        $response = Http::retry(3, 500)
+
+            ->timeout(30)
+
+            ->withHeaders([
+
+                'X-API-KEY' => env('FINGERPRINT_API_KEY')
+
+            ])
+
+            ->post(
+
+                env('SERVER_API') . '/api/presensi/upload',
+
+                [
+
+                    'absen_list' => [
+
+                        [
+
+                            'pin'      => $log->pin,
+
+                            'nama'     => $log->nama,
+
+                            'tanggal'  => \Carbon\Carbon::parse(
+                                $log->tanggal
+                            )->format('d/m/Y'),
+
+                            'jam'      => $log->jam
+
+                        ]
 
                     ]
 
-                );
-
-            if($response->successful()){
-
-                $log->update([
-
-                    'status_server'=>'success'
-
-                ]);
-
-                Log::info(
-
-                    'Upload VPS berhasil : '
-
-                    .$log->pin
-
-                );
-
-            }
-
-            else{
-
-                $log->update([
-
-                    'status_server'=>'failed'
-
-                ]);
-
-                Log::error(
-
-                    'Upload VPS gagal : '
-
-                    .$response->status()
-
-                );
-
-            }
-
-        }
-
-        catch(\Throwable $e){
-
-            $log->update([
-
-                'status_server'=>'failed'
-
-            ]);
-
-            Log::error(
-
-                'Exception Upload VPS : '
-
-                .$e->getMessage()
+                ]
 
             );
 
+        if ($response->successful()) {
+
+            $log->update([
+
+                'status_server' => 'success',
+
+                'updated_at'    => now()
+
+            ]);
+
+            return;
+
         }
+
+        $log->update([
+
+            'status_server' => 'failed',
+
+            'updated_at'    => now()
+
+        ]);
+
+        Log::error(
+
+            'Upload VPS gagal',
+
+            [
+
+                'status' => $response->status(),
+
+                'body'   => $response->body()
+
+            ]
+
+        );
+
+    } catch (\Throwable $e) {
+
+        $log->update([
+
+            'status_server' => 'failed',
+
+            'updated_at'    => now()
+
+        ]);
+
+        Log::error($e);
+
     }
+}
+  private function kirimDataPendingKeVps(): void
+{
+    PresensiLog::where(
 
-    private function kirimDataPendingKeVps()
-    {
-        PresensiLog::where('status_sinkron', 'matched')
-            ->where(function ($q) {
+            'status_sinkron',
 
-                $q->whereNull('status_server')
-                    ->orWhere('status_server', 'pending')
-                    ->orWhere('status_server', 'failed');
+            'matched'
 
-            })
-            ->select(
-                'id',
-                'pin',
-                'nama',
-                'tanggal',
-                'jam',
-                'verify_code',
-                'status_server'
-            )
-            ->orderBy('id')
-            ->limit(500)
-            ->chunk(100, function ($logs) {
+        )
 
-                foreach ($logs as $log) {
+        ->where(function ($query) {
 
-                    $this->kirimKeVps($log);
+            $query
 
-                }
+                ->whereNull('status_server')
 
-            });
-    }
+                ->orWhere(
 
+                    'status_server',
+
+                    'pending'
+
+                )
+
+                ->orWhere(
+
+                    'status_server',
+
+                    'failed'
+
+                );
+
+        })
+
+        ->orderBy('id')
+
+        ->chunkById(100, function ($logs) {
+
+            foreach ($logs as $log) {
+
+                $this->kirimKeVps($log);
+
+            }
+
+        });
+}
     private function generateRecordHash($pin, $tanggal, $jam)
     {
         return hash(
