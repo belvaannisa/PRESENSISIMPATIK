@@ -122,13 +122,9 @@ public $timeout = 120;
             */
             $this->tentukanStatus($presensi);
 
+Log::info('DATA PRESENSI', $presensi->getAttributes());
 
-            /*
-            |--------------------------------------------------------------------------
-            | Simpan Presensi
-            |--------------------------------------------------------------------------
-            */
-           $presensi->save();
+$presensi->save();
 
 $this->updateLog(
     $log,
@@ -265,7 +261,7 @@ $this->kirimKeVps($log);
             $presensi->jam_keluar = null;
             $presensi->status = 'Tepat Waktu';
             $presensi->keterangan = 'Hadir';
-            $presensi->sumber = 'Mesin'; // Contoh pelengkap nilai terpotong
+           $presensi->sumber = 'fingerprint';
         }
 
 
