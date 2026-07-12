@@ -178,95 +178,45 @@ $this->kirimKeVps($log);
   private function kirimKeVps(PresensiLog $log): void
 {
     try {
-
-        $response = Http::retry(3, 500)
-
-            ->timeout(30)
-
+        $response = Http::retry(2, 1000)
+            ->timeout(8)
             ->withHeaders([
-
-                'X-API-KEY' => env('FINGERPRINT_API_KEY')
-
+                'X-API-KEY' => env('API_KEY'),
             ])
-
-            ->post(
-
-                env('SERVER_API') . '/api/presensi/upload',
-
-                [
-
-                    'absen_list' => [
-
-                        [
-
-                            'pin'      => $log->pin,
-
-                            'nama'     => $log->nama,
-
-                            'tanggal'  => \Carbon\Carbon::parse(
-                                $log->tanggal
-                            )->format('d/m/Y'),
-
-                            'jam'      => $log->jam
-
-                        ]
-
-                    ]
-
-                ]
-
-            );
-
-        if ($response->successful()) {
-
-            $log->update([
-
-                'status_server' => 'success',
-
-                'updated_at'    => now()
-
+            ->post(env('SERVER_API') . '/api/presensi/upload', [
+                'log_id' => $log->id, // Contoh pengisian payload
             ]);
 
+        if ($response->successful()) {
+            $log->update([
+                'status_server' => 'success',
+                'updated_at'    => now(),
+            ]);
             return;
-
         }
 
         $log->update([
-
             'status_server' => 'failed',
-
-            'updated_at'    => now()
-
+            'updated_at'    => now(),
         ]);
 
-        Log::error(
-
-            'Upload VPS gagal',
-
-            [
-
-                'status' => $response->status(),
-
-                'body'   => $response->body()
-
-            ]
-
-        );
+        Log::error('Upload VPS gagal', [
+            'status' => $response->status(),
+            'body'   => $response->body(),
+        ]);
 
     } catch (\Throwable $e) {
-
         $log->update([
-
             'status_server' => 'failed',
-
-            'updated_at'    => now()
-
+            'updated_at'    => now(),
         ]);
 
-        Log::error($e);
-
+        Log::error($e->getMessage(), [
+            'exception' => $e
+        ]);
     }
 }
+
     /*
     |--------------------------------------------------------------------------
     | Cari Karyawan Berdasarkan PIN
