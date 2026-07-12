@@ -17,7 +17,10 @@ class Presensi extends Model
         'jam_masuk',
         'jam_keluar',
         'status',
-        'keterangan'
+        'keterangan',
+
+        'diedit_oleh',
+        'waktu_edit',
     ];
 
     /**
@@ -26,5 +29,10 @@ class Presensi extends Model
     public function karyawan()
     {
         return $this->belongsTo(Karyawan::class);
+    }
+
+    public function editor()
+    {
+        return $this->belongsTo(User::class,'diedit_oleh');
     }
 }

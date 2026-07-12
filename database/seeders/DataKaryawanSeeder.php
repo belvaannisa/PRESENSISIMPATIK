@@ -216,23 +216,7 @@ class DataKaryawanSeeder extends Seeder
             [
                 'pin' => 344,
                 'nama' => 'NURHAYATI',
-                'jabatan' => null,
-                'no_hp' => null,
-                'tanggal_masuk' => null,
-            ],
-
-            [
-                'pin' => 353,
-                'nama' => 'SITI RUMINAH',
-                'jabatan' => null,
-                'no_hp' => null,
-                'tanggal_masuk' => null,
-            ],
-
-            [
-                'pin' => 352,
-                'nama' => 'WIKRAMA',
-                'jabatan' => null,
+                'jabatan' => 'SR BJB',
                 'no_hp' => null,
                 'tanggal_masuk' => null,
             ],

@@ -2,18 +2,12 @@
 
 use Illuminate\Support\Facades\Route;
 
-use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\KaryawanController;
 use App\Http\Controllers\PresensiController;
 use App\Http\Controllers\LaporanController;
 use App\Http\Controllers\Api\PresensiApiController;
-
-
-
-use App\Http\Controllers\Auth\AuthenticatedSessionController;
-
-
 
 /*
 |--------------------------------------------------------------------------
@@ -22,26 +16,10 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 */
 
 Route::get('/', function () {
-
     return redirect()->route('login');
-
 });
-Route::get('/tes', function () {
-    return 'TES BERHASIL';
-});
-Route::get('/tes-create', [KaryawanController::class, 'create']);
 
-
-
-/*
-|--------------------------------------------------------------------------
-| AUTH
-|--------------------------------------------------------------------------
-*/
-
-require __DIR__ . '/auth.php';
-
-
+require __DIR__.'/auth.php';
 
 /*
 |--------------------------------------------------------------------------
@@ -54,20 +32,16 @@ Route::post('/logout', [
     'destroy'
 ])->name('logout');
 
-
-
 /*
 |--------------------------------------------------------------------------
 | DASHBOARD
-|--------------------------------------------------------------------------
-| Semua role bisa akses dashboard
 |--------------------------------------------------------------------------
 */
 
 Route::middleware([
     'auth',
     'verified',
-    'role:admin,kepala_personalia,pimpinan'
+    'role:admin,kepala_personalia,haf,pimpinan'
 ])->group(function () {
 
     Route::get('/dashboard', [
@@ -77,42 +51,15 @@ Route::middleware([
 
 });
 
-
-
 /*
 |--------------------------------------------------------------------------
-| ADMIN ONLY
+| KARYAWAN (LIHAT)
 |--------------------------------------------------------------------------
 */
 
 Route::middleware([
     'auth',
-    'role:admin'
-])->group(function () {
-
-    /*
-    |--------------------------------------------------------------------------
-    | DATA USER
-    |--------------------------------------------------------------------------
-    */
-
-    // Route::resource('users', UserController::class);
-
-});
-
-
-
-/*
-|--------------------------------------------------------------------------
-| VIEW DATA KARYAWAN
-|--------------------------------------------------------------------------
-| Semua role bisa melihat data karyawan
-|--------------------------------------------------------------------------
-*/
-
-Route::middleware([
-    'auth',
-    'role:admin,kepala_personalia,pimpinan'
+    'role:admin,kepala_personalia,haf,pimpinan'
 ])->group(function () {
 
     Route::get('/karyawan', [
@@ -120,142 +67,127 @@ Route::middleware([
         'index'
     ])->name('karyawan.index');
 
+    Route::get('/karyawan/{id}/detail', [
+        KaryawanController::class,
+        'detail'
+    ])->name('karyawan.detail');
+
+    Route::get('/karyawan/{id}/pdf', [
+        KaryawanController::class,
+        'exportDetailPdf'
+    ])->name('karyawan.pdf');
 
 });
 
-    // Admin & Kepala Personalia
-    Route::middleware(['auth','role:admin,kepala_personalia'])->group(function () {
+/*
+|--------------------------------------------------------------------------
+| KARYAWAN (CRUD)
+|--------------------------------------------------------------------------
+*/
 
-        Route::get('/karyawan/tambah', [KaryawanController::class, 'create'])
-            ->name('karyawan.tambah');
+Route::middleware([
+    'auth',
+    'role:admin,kepala_personalia,haf'
+])->group(function () {
 
-        Route::post('/karyawan/simpan', [KaryawanController::class, 'store'])
-            ->name('karyawan.simpan');
+    Route::get('/karyawan/tambah', [
+        KaryawanController::class,
+        'create'
+    ])->name('karyawan.tambah');
 
-        Route::get('/karyawan/{karyawan}/edit', [KaryawanController::class, 'edit'])
-            ->name('karyawan.edit');
+    Route::post('/karyawan', [
+        KaryawanController::class,
+        'store'
+    ])->name('karyawan.store');
 
-        Route::put('/karyawan/{karyawan}', [KaryawanController::class, 'update'])
-            ->name('karyawan.update');
+    Route::get('/karyawan/{karyawan}/edit', [
+        KaryawanController::class,
+        'edit'
+    ])->name('karyawan.edit');
 
-        Route::delete('/karyawan/{karyawan}', [KaryawanController::class, 'destroy'])
-            ->name('karyawan.destroy');
+    Route::put('/karyawan/{karyawan}', [
+        KaryawanController::class,
+        'update'
+    ])->name('karyawan.update');
 
-    });
+    Route::delete('/karyawan/{karyawan}', [
+        KaryawanController::class,
+        'destroy'
+    ])->name('karyawan.destroy');
 
-    /*
-    |--------------------------------------------------------------------------
-    | Semua role bisa melihat data karyawan
-    |--------------------------------------------------------------------------
-    */
+});
 
-    Route::middleware([
-        'auth',
-        'role:admin,kepala_personalia,pimpinan'
-    ])->group(function () {
+/*
+|--------------------------------------------------------------------------
+| PRESENSI (LIHAT)
+|--------------------------------------------------------------------------
+*/
 
-        Route::get('/karyawan', [KaryawanController::class, 'index'])
-            ->name('karyawan.index');
+Route::middleware([
+    'auth',
+    'role:admin,kepala_personalia,haf,pimpinan'
+])->group(function () {
 
-        Route::get('/karyawan/{id}/detail', [KaryawanController::class, 'detail'])
-            ->name('karyawan.detail');
-
-        Route::get('/karyawan/{id}/pdf', [KaryawanController::class, 'exportDetailPdf'])
-            ->name('karyawan.pdf');
-    });
-
-    /*
-    |--------------------------------------------------------------------------
-    | Admin + Kepala Personalia
-    |--------------------------------------------------------------------------
-    */
-
-    Route::middleware([
-        'auth',
-        'role:admin,kepala_personalia'
-    ])->group(function () {
-
-        Route::resource('karyawan', KaryawanController::class)
-            ->except(['index', 'show']);
-
-    });
-
-    /*
-    |--------------------------------------------------------------------------
-    | PRESENSI FULL CRUD
-    |--------------------------------------------------------------------------
-    */
-
-    Route::resource('presensi', PresensiController::class);
-
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | ABSEN KELUAR
-    |--------------------------------------------------------------------------
-    */
-
-    Route::get('/presensi/keluar/{id}', [
+    Route::get('/presensi', [
         PresensiController::class,
-        'absenKeluar'
-    ])->name('presensi.keluar');
+        'index'
+    ])->name('presensi.index');
 
+    Route::get('/presensi/{presensi}/edit', [
+        PresensiController::class,
+        'edit'
+    ])->name('presensi.edit');
 
+    Route::put('/presensi/{presensi}', [
+        PresensiController::class,
+        'update'
+    ])->name('presensi.update');
 
-    /*
-    |--------------------------------------------------------------------------
-    | IMPORT PRESENSI OTOMATIS
-    |--------------------------------------------------------------------------
-    */
+    Route::delete('/presensi/{presensi}', [
+        PresensiController::class,
+        'destroy'
+    ])->name('presensi.destroy');
 
-        Route::post(
-            '/presensi/auto-import',
-            [PresensiController::class,'importLocal']
-        )->name('presensi.autoimport');
+});
 
-        Route::post(
-            '/presensi/import',
-            [PresensiController::class,
-            'importLocal']
-        )->name('presensi.import');
+/*
+|--------------------------------------------------------------------------
+| IMPORT PRESENSI
+|--------------------------------------------------------------------------
+*/
 
-    /*
-    |--------------------------------------------------------------------------
-    | UPLOAD PRESENSI MANUAL
-    |--------------------------------------------------------------------------
-    */
+Route::middleware([
+    'auth',
+    'role:admin,kepala_personalia,haf'
+])->group(function () {
 
-    Route::post('/upload-presensi', [
+    Route::post('/presensi/import', [
+        PresensiController::class,
+        'importLocal'
+    ])->name('presensi.import');
+
+    Route::post('/presensi/upload-file', [
         PresensiController::class,
         'upload'
     ])->name('presensi.upload');
-    
-    /*
-    |--------------------------------------------------------------------------
-    | LAPORAN
-    |--------------------------------------------------------------------------
-    | Semua role bisa melihat laporan
-    |--------------------------------------------------------------------------
-    */
 
-    Route::middleware([
-        'auth',
-        'role:admin,kepala_personalia,pimpinan'
-    ])->group(function () {
+});
 
-    /*
-    |--------------------------------------------------------------------------
-    | LAPORAN PRESENSI
-    |--------------------------------------------------------------------------
-    */
+/*
+|--------------------------------------------------------------------------
+| LAPORAN
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware([
+    'auth',
+    'role:admin,kepala_personalia,haf,pimpinan'
+])->group(function () {
 
     Route::get('/laporan/presensi', [
         LaporanController::class,
         'presensi'
     ])->name('laporan.presensi');
-
-
 
     Route::get('/laporan/presensi/export-pdf', [
         LaporanController::class,
@@ -264,12 +196,17 @@ Route::middleware([
 
 });
 
+/*
+|--------------------------------------------------------------------------
+| API Fingerprint
+|--------------------------------------------------------------------------
+*/
 
 Route::middleware('apikey')->group(function () {
 
-    Route::post(
-        '/presensi/upload',
-        [PresensiApiController::class,'upload']
-    );
+    Route::post('/presensi/upload', [
+        PresensiApiController::class,
+        'upload'
+    ]);
 
 });

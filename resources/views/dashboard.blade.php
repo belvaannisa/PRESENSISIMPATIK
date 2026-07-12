@@ -53,7 +53,10 @@
             </div>
 
             {{-- Hanya Kepala Personalia --}}
-            @if(Auth::user()->role == 'kepala_personalia')
+            @if(in_array(Auth::user()->role, [
+                'kepala_personalia',
+                'haf'
+            ]))
             <div class="col-md-4 col-12 mb-3">
                 <div class="card text-dark" style="background-color:#FEECC8;">
                     <div class="card-body">

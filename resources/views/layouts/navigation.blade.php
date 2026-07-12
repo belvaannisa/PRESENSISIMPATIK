@@ -47,7 +47,11 @@
                 </li>
 
                 {{-- PRESENSI --}}
-                @if(in_array(auth()->user()->role, ['admin','kepala_personalia']))
+                @if(in_array(auth()->user()->role, [
+                    'admin',
+                    'kepala_personalia',
+                    'haf'
+                ]))
                 <li class="nav-item">
                     <a class="nav-link {{ request()->routeIs('presensi.*') ? 'active' : '' }}"
                        href="{{ route('presensi.index') }}">
@@ -127,7 +131,11 @@
                 </a>
             </li>
 
-            @if(in_array(auth()->user()->role, ['admin','kepala_personalia']))
+            @if(in_array(auth()->user()->role, [
+                'admin',
+                'kepala_personalia',
+                'haf'
+            ]))
             <li class="nav-item mb-2">
                 <a class="nav-link"
                    href="{{ route('presensi.index') }}">
