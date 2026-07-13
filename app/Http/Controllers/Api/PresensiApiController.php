@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
 use App\Models\PresensiLog;
 use App\Models\Presensi;
@@ -15,36 +14,15 @@ class PresensiApiController extends Controller
 {
     public function upload(Request $request)
     {
-        /*
-        |--------------------------------------------------------------------------
-        | 1. VALIDASI LONGGAR (Anti-Format Ditolak)
-        |--------------------------------------------------------------------------
-        */
-        $validator = Validator::make($request->all(), [
-            'absen_list'           => 'required|array',
-            'absen_list.*.pin'     => 'required',
-            'absen_list.*.tanggal' => 'required',
-            'absen_list.*.jam'     => 'required'
-        ]);
-
-        if ($validator->fails()) {
-            // Return 200 agar Python tidak ngambek, tapi memunculkan pesan error aslinya
-            return response()->json([
-                'success' => false,
-                'message' => 'Validasi Data Gagal: ' . json_encode($validator->errors())
-            ], 200); 
-        }
-
-        DB::beginTransaction();
-
         try {
             $dataAbsen = $request->input('absen_list');
-            
-            /*
-            |--------------------------------------------------------------------------
-            | 2. KELOMPOKKAN DATA PER ORANG & TANGGAL (Grouping)
-            |--------------------------------------------------------------------------
-            */
+
+            if (empty($dataAbsen) || !is_array($dataAbsen)) {
+                return response()->json(['success' => false, 'message' => 'Data kosong'], 200); 
+            }
+
+            DB::beginTransaction();
+
             $groupedData = [];
             foreach ($dataAbsen as $item) {
                 $pin = trim((string) $item['pin']);
@@ -68,34 +46,28 @@ class PresensiApiController extends Controller
                     ];
                 }
                 
-                // Mencegah jam ganda di memori
                 if (!in_array($jam, $groupedData[$key]['scans'])) {
                     $groupedData[$key]['scans'][] = $jam;
                 }
             }
 
-            // Ambil Karyawan sekaligus
-            $karyawanMap = Karyawan::whereIn('pin', array_column($groupedData, 'pin'))
+            // Gunakan array_values agar array_column bisa bekerja dengan sempurna
+            $karyawanMap = Karyawan::whereIn('pin', array_column(array_values($groupedData), 'pin'))
                 ->get()
                 ->keyBy(function($k) { return trim($k->pin); });
             
             $logUpsert = [];
-            $now = now();
+            
+            // Ubah now() menjadi string agar fungsi upsert MySQL tidak error
+            $now = now()->toDateTimeString(); 
             $batasTunggal = config('jabatan.batas_scan_tunggal', '12:30:00');
 
-            /*
-            |--------------------------------------------------------------------------
-            | 3. LOGIKA CERDAS: JAM MASUK, JAM KELUAR & STATUS
-            |--------------------------------------------------------------------------
-            */
             foreach ($groupedData as $key => $data) {
                 $karyawan = $karyawanMap->get($data['pin']);
                 $scans = $data['scans'];
                 
-                // Urutkan scan dari pagi ke sore
                 sort($scans); 
                 
-                // Siapkan data history PresensiLog
                 foreach ($scans as $jam) {
                     $recordHash = hash('sha256', $data['pin'] . '|' . $data['tanggal'] . '|' . $jam);
                     $logUpsert[] = [
@@ -114,39 +86,33 @@ class PresensiApiController extends Controller
                     ];
                 }
 
-                // Jika PIN tidak ada di database, cukup simpan log, lewati Presensi
                 if (!$karyawan) continue;
 
                 $jamMasuk = null;
                 $jamKeluar = null;
 
-                // ---> A. LOGIKA SCAN TUNGGAL/GANDA
                 if (count($scans) == 1) {
-                    // Cuma 1 Scan: Apakah pagi atau sore?
                     if (strtotime($scans[0]) >= strtotime($batasTunggal)) {
-                        $jamKeluar = $scans[0]; // Absen Pulang
+                        $jamKeluar = $scans[0]; 
                     } else {
-                        $jamMasuk = $scans[0];  // Absen Masuk
+                        $jamMasuk = $scans[0];  
                     }
                 } else {
                     $minJam = $scans[0];
                     $maxJam = end($scans);
 
-                    // Selisih kurang dari 1 jam = Double tap spam!
                     if (strtotime($maxJam) - strtotime($minJam) < 3600) {
                         if (strtotime($minJam) >= strtotime($batasTunggal)) {
-                            $jamKeluar = $maxJam; // Dua-duanya tap sore
+                            $jamKeluar = $maxJam;
                         } else {
-                            $jamMasuk = $minJam;  // Dua-duanya tap pagi
+                            $jamMasuk = $minJam;
                         }
                     } else {
-                        // Normal
                         $jamMasuk = $minJam;
                         $jamKeluar = $maxJam;
                     }
                 }
 
-                // ---> B. LOGIKA "TIDAK TERBATAS"
                 if (empty($jamKeluar)) {
                     $tipeKeluar = trim($karyawan->tipe_jam_keluar);
                     if (strcasecmp($tipeKeluar, 'Tidak Terbatas') == 0 || strcasecmp($tipeKeluar, config('jabatan.tidak_terbatas')) == 0) {
@@ -154,39 +120,29 @@ class PresensiApiController extends Controller
                     }
                 }
 
-                // ---> C. LOGIKA STATUS & HARI MINGGU
                 if (empty($jamMasuk)) {
-                    // Tidak ada jam masuk = Belum Hadir (jangan isi Tepat Waktu)
                     $status = 'Belum Hadir';
                 } else {
                     $tanggalCarbon = Carbon::parse($data['tanggal']);
                     
                     if ($tanggalCarbon->isSunday()) {
-                        // Cari tahu jumlah hari minggu di bulan itu (4 atau 5)
                         $totalSundays = 0;
                         for ($i = 1; $i <= $tanggalCarbon->daysInMonth; $i++) {
                             if ($tanggalCarbon->copy()->day($i)->isSunday()) $totalSundays++;
                         }
                         $mingguKe = ceil($tanggalCarbon->day / 7);
 
-                        // Aturan: Hanya masuk di 2 hari minggu terakhir (Batas 09:15)
                         if ($mingguKe == $totalSundays || $mingguKe == ($totalSundays - 1)) {
                             $status = strtotime($jamMasuk) > strtotime('09:15:00') ? 'Terlambat' : 'Tepat Waktu';
                         } else {
-                            $status = 'Tepat Waktu'; // Libur
+                            $status = 'Tepat Waktu'; 
                         }
                     } else {
-                        // Hari Biasa: Batas Telat 08:15
                         $status = strtotime($jamMasuk) > strtotime('08:15:00') ? 'Terlambat' : 'Tepat Waktu';
                     }
                 }
 
-                /*
-                |--------------------------------------------------------------------------
-                | 4. SIMPAN OTOMATIS KE TABEL PRESENSI
-                | Menggunakan updateOrCreate untuk mencegah data stuck di log!
-                |--------------------------------------------------------------------------
-                */
+                // Simpan ke Tabel Presensi
                 Presensi::updateOrCreate(
                     [
                         'karyawan_id' => $karyawan->id,
@@ -198,29 +154,46 @@ class PresensiApiController extends Controller
                         'status'     => $status,
                         'keterangan' => 'Hadir',
                         'sumber'     => 'api',
+                        'updated_at' => $now
                     ]
                 );
             }
 
-            // Upsert hanya untuk log (karena record_hash dijamin unik)
+            // Simpan Data Log 
             foreach (array_chunk($logUpsert, 500) as $chunk) {
                 PresensiLog::upsert($chunk, ['record_hash'], ['karyawan_id', 'status_sinkron', 'catatan', 'updated_at']);
             }
 
             DB::commit();
 
+            // Jika sukses, hapus file error log agar bersih
+            if (file_exists(public_path('error_api_log.txt'))) {
+                unlink(public_path('error_api_log.txt'));
+            }
+
             return response()->json([
                 'success'    => true,
-                'message'    => "Proses Bulk API Selesai. Logika presensi berhasil dijalankan.",
+                'message'    => "Proses Bulk API Selesai. Data sinkron sepenuhnya.",
                 'total_data' => count($logUpsert)
             ], 200);
 
         } catch (\Throwable $e) {
             DB::rollBack();
-            // JIKA ADA ERROR LARAVEL, PYTHON AKAN MENCETAK BARIS ERRORNYA
+            
+            // =========================================================
+            // PEREKAM ERROR OTOMATIS (Mencatat apa yang error di server)
+            // =========================================================
+            $pesanError = "WAKTU ERROR: " . now() . "\n";
+            $pesanError .= "PESAN: " . $e->getMessage() . "\n";
+            $pesanError .= "BARIS: " . $e->getLine() . "\n";
+            $pesanError .= "FILE: " . $e->getFile() . "\n";
+            
+            file_put_contents(public_path('error_api_log.txt'), $pesanError);
+            
+            // Tetap return 200 agar Python tidak mendeteksi format salah
             return response()->json([
                 'success' => false,
-                'message' => 'Terjadi Kesalahan Koding Laravel: ' . $e->getMessage() . ' (Baris: ' . $e->getLine() . ')'
+                'message' => 'Terjadi error, silakan cek file log.'
             ], 200); 
         }
     }
