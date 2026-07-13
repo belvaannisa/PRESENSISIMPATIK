@@ -47,12 +47,14 @@ public function upload(Request $request)
             $nama = trim($item['nama']);
             
             // Perbaikan Parsing Tanggal
+            // Perbaikan Parsing Tanggal
             try {
                 $tanggal = \Carbon\Carbon::createFromFormat('d/m/Y', trim($item['tanggal']))->format('Y-m-d');
             } catch (\Exception $e) {
                 $tanggal = \Carbon\Carbon::parse(trim($item['tanggal']))->format('Y-m-d');
             }
             
+            // WAJIB SEPERTI INI AGAR WAKTU SORE (PM) TIDAK TERTUKAR DENGAN PAGI (AM)
             $jam = \Carbon\Carbon::parse(trim($item['jam']))->format('H:i:s');
             $recordHash = hash('sha256', $pin . '|' . $tanggal . '|' . $jam);
 
