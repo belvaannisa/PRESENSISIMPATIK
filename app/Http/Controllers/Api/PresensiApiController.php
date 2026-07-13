@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
 use App\Models\PresensiLog;
 use App\Models\Presensi;
@@ -14,32 +15,50 @@ class PresensiApiController extends Controller
 {
     public function upload(Request $request)
     {
-        // PERBAIKAN VALIDASI: Menghapus aturan strict 'string' agar PIN angka tidak ditolak
-        $request->validate([
+        /*
+        |--------------------------------------------------------------------------
+        | 1. VALIDASI MANUAL
+        | Mencegah Laravel mengirim kode 422 yang membuat Python error
+        |--------------------------------------------------------------------------
+        */
+        $validator = Validator::make($request->all(), [
             'absen_list'           => 'required|array',
             'absen_list.*.pin'     => 'required',
-            'absen_list.*.nama'    => 'nullable',
             'absen_list.*.tanggal' => 'required',
             'absen_list.*.jam'     => 'required'
         ]);
+
+        if ($validator->fails()) {
+            // Paksa return 500 agar Python mencetak error aslinya (jika memang ada yang gagal)
+            return response()->json([
+                'success' => false,
+                'message' => 'Validasi Data Gagal: ' . json_encode($validator->errors())
+            ], 500); 
+        }
 
         DB::beginTransaction();
 
         try {
             $dataAbsen = $request->input('absen_list');
             
+            /*
+            |--------------------------------------------------------------------------
+            | 2. KELOMPOKKAN DATA (Berdasarkan PIN & Tanggal)
+            |--------------------------------------------------------------------------
+            */
             $groupedData = [];
             foreach ($dataAbsen as $item) {
-                $pin = trim($item['pin']);
-                $nama = isset($item['nama']) ? trim($item['nama']) : '';
+                // Konversi paksa ke string agar trim() tidak error jika menerima angka
+                $pin = trim((string) $item['pin']);
+                $nama = isset($item['nama']) ? trim((string) $item['nama']) : '';
                 
                 try {
-                    $tanggal = Carbon::createFromFormat('d/m/Y', trim($item['tanggal']))->format('Y-m-d');
+                    $tanggal = Carbon::createFromFormat('d/m/Y', trim((string) $item['tanggal']))->format('Y-m-d');
                 } catch (\Exception $e) {
-                    $tanggal = Carbon::parse(trim($item['tanggal']))->format('Y-m-d');
+                    $tanggal = Carbon::parse(trim((string) $item['tanggal']))->format('Y-m-d');
                 }
                 
-                $jam = Carbon::parse(trim($item['jam']))->format('H:i:s');
+                $jam = Carbon::parse(trim((string) $item['jam']))->format('H:i:s');
                 $key = $pin . '|' . $tanggal;
                 
                 if (!isset($groupedData[$key])) {
@@ -50,7 +69,11 @@ class PresensiApiController extends Controller
                         'scans'   => []
                     ];
                 }
-                $groupedData[$key]['scans'][] = $jam;
+                
+                // Mencegah jam yang sama persis masuk ke array
+                if (!in_array($jam, $groupedData[$key]['scans'])) {
+                    $groupedData[$key]['scans'][] = $jam;
+                }
             }
 
             $karyawanMap = Karyawan::whereIn('pin', array_column($groupedData, 'pin'))
@@ -62,10 +85,16 @@ class PresensiApiController extends Controller
             $now = now();
             $batasTunggal = config('jabatan.batas_scan_tunggal', '12:30:00');
 
+            /*
+            |--------------------------------------------------------------------------
+            | 3. LOGIKA KEPUTUSAN JAM MASUK & KELUAR
+            |--------------------------------------------------------------------------
+            */
             foreach ($groupedData as $key => $data) {
                 $karyawan = $karyawanMap->get($data['pin']);
                 $scans = $data['scans'];
                 
+                // Urutkan dari pagi ke sore
                 sort($scans); 
                 
                 foreach ($scans as $jam) {
@@ -88,31 +117,28 @@ class PresensiApiController extends Controller
 
                 if (!$karyawan) continue;
 
-                /*
-                |--------------------------------------------------------------------------
-                | LOGIKA JAM MASUK & KELUAR SUPER PRESISI
-                |--------------------------------------------------------------------------
-                */
                 $jamMasuk = null;
                 $jamKeluar = null;
 
+                // LOGIKA: Jika Karyawan Cuma Absen 1 Kali
                 if (count($scans) == 1) {
-                    // CUMA 1 SCAN: Cek apakah ini absen pagi atau absen sore
                     if (strtotime($scans[0]) >= strtotime($batasTunggal)) {
-                        $jamKeluar = $scans[0]; // Absen sore
+                        $jamKeluar = $scans[0]; // Di atas jam 12:30 = Absen Pulang
                     } else {
-                        $jamMasuk = $scans[0];  // Absen pagi
+                        $jamMasuk = $scans[0];  // Di bawah jam 12:30 = Absen Masuk
                     }
-                } else {
+                } 
+                // LOGIKA: Absen Lebih dari 1 Kali
+                else {
                     $minJam = $scans[0];
                     $maxJam = end($scans);
 
-                    // DOUBLE TAP (Selisih di bawah 1 jam)
+                    // DOUBLE TAP (Selisih waktu di bawah 1 Jam)
                     if (strtotime($maxJam) - strtotime($minJam) < 3600) {
                         if (strtotime($minJam) >= strtotime($batasTunggal)) {
-                            $jamKeluar = $maxJam; // Dua-duanya tap sore
+                            $jamKeluar = $maxJam; // Double tap saat sore
                         } else {
-                            $jamMasuk = $minJam;  // Dua-duanya tap pagi
+                            $jamMasuk = $minJam;  // Double tap saat pagi
                         }
                     } else {
                         // NORMAL: Tap pagi dan sore
@@ -121,7 +147,7 @@ class PresensiApiController extends Controller
                     }
                 }
 
-                // Logika Tidak Terbatas
+                // Logika Karyawan "Tidak Terbatas"
                 if (empty($jamKeluar)) {
                     $tipeKeluar = trim($karyawan->tipe_jam_keluar);
                     if (strcasecmp($tipeKeluar, 'Tidak Terbatas') == 0 || strcasecmp($tipeKeluar, config('jabatan.tidak_terbatas')) == 0) {
@@ -129,7 +155,7 @@ class PresensiApiController extends Controller
                     }
                 }
 
-                // Logika Status Telat
+                // Logika Status Hari Biasa & Hari Minggu
                 if (empty($jamMasuk)) {
                     $status = 'Belum Hadir';
                 } else {
@@ -142,12 +168,14 @@ class PresensiApiController extends Controller
                         }
                         $mingguKe = ceil($tanggalCarbon->day / 7);
 
+                        // Aturan: Hanya masuk di 2 minggu terakhir (batas 09:15)
                         if ($mingguKe == $totalSundays || $mingguKe == ($totalSundays - 1)) {
                             $status = strtotime($jamMasuk) > strtotime('09:15:00') ? 'Terlambat' : 'Tepat Waktu';
                         } else {
                             $status = 'Tepat Waktu';
                         }
                     } else {
+                        // Hari Senin - Sabtu (batas 08:15)
                         $status = strtotime($jamMasuk) > strtotime('08:15:00') ? 'Terlambat' : 'Tepat Waktu';
                     }
                 }
@@ -165,6 +193,11 @@ class PresensiApiController extends Controller
                 ];
             }
 
+            /*
+            |--------------------------------------------------------------------------
+            | 4. SIMPAN KE DATABASE (BULK INSERT)
+            |--------------------------------------------------------------------------
+            */
             foreach (array_chunk($logUpsert, 500) as $chunk) {
                 PresensiLog::upsert($chunk, ['record_hash'], ['karyawan_id', 'status_sinkron', 'catatan', 'updated_at']);
             }
@@ -177,15 +210,16 @@ class PresensiApiController extends Controller
 
             return response()->json([
                 'success'    => true,
-                'message'    => "Proses API Selesai. Data sinkron.",
+                'message'    => "Proses Bulk API Selesai. Data sinkron sepenuhnya.",
                 'total_data' => count($logUpsert)
             ], 200);
 
         } catch (\Throwable $e) {
             DB::rollBack();
+            // Jika codingan PHP ada yang salah, errornya akan tercetak di layar Python
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal: ' . $e->getMessage()
+                'message' => 'Gagal Proses Server: ' . $e->getMessage() . ' (Baris: ' . $e->getLine() . ')'
             ], 500);
         }
     }
