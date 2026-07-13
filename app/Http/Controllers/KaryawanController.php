@@ -103,25 +103,46 @@ class KaryawanController extends Controller
     }
 
     // 💾 SIMPAN DATA
-    public function store(Request $request)
+public function store(Request $request)
 {
     $request->validate([
-        'karyawan_id' => 'required',
-        'tanggal' => 'required|date',
-        'jam_masuk' => 'nullable',
-        'jam_keluar' => 'nullable',
+        'pin'             => 'nullable|string|unique:karyawans,pin',
+        'nama'            => 'required|string|max:255',
+        'jabatan'         => 'required|in:' . implode(',', Karyawan::$jabatanList),
+        'no_hp'           => 'nullable|string|max:20',
+        'tanggal_masuk'   => 'nullable|date',
+        'status_aktif'    => 'nullable|boolean',
+        'jam_keluar'      => 'nullable|date_format:H:i',
     ]);
 
-    Presensi::create([
-        'karyawan_id' => $request->karyawan_id,
-        'tanggal' => $request->tanggal,
-        'jam_masuk' => $request->jam_masuk,
-        'jam_keluar' => $request->jam_keluar,
-        'status' => $request->status,
-        'keterangan' => $request->keterangan,
+    $tipeJamKeluar = $this->getTipeJamKeluar($request->jabatan);
+
+    $jamKeluar = $tipeJamKeluar == config('jabatan.tidak_terbatas')
+        ? null
+        : ($request->jam_keluar ?: config('jabatan.jam_keluar_default'));
+
+    Karyawan::create([
+
+        'pin'                 => $request->pin,
+        'nama'                => strtoupper($request->nama),
+        'jabatan'             => $request->jabatan,
+        'no_hp'               => $request->no_hp,
+        'tanggal_masuk'       => $request->tanggal_masuk,
+
+        'jam_masuk'           => config('jabatan.jam_masuk_default'),
+        'jam_keluar'          => $jamKeluar,
+        'tipe_jam_keluar'     => $tipeJamKeluar,
+
+        'status_aktif'        => $request->boolean('status_aktif'),
+
+        'sinkron_fingerprint' => true,
     ]);
 
-    return redirect()->route('presensi.index');
+    $lastPage = ceil(Karyawan::count() / 10);
+
+    return redirect()
+        ->route('karyawan.index', ['page' => $lastPage])
+        ->with('success', 'Data Karyawan Berhasil Ditambahkan!');
 }
 
 
@@ -141,7 +162,7 @@ class KaryawanController extends Controller
     // 🔄 UPDATE
     public function update(Request $request, Karyawan $karyawan)
 {
-     dd('MASUK UPDATE');
+
     $request->validate([
         'pin' => 'nullable|string|unique:karyawans,pin,' . $karyawan->id,
         'nama' => 'required|string|max:255',
