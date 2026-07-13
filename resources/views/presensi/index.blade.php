@@ -99,18 +99,12 @@
                             <td class="text-center">
 
                                 @if($p->status == 'Terlambat')
-
-                                <span class="badge bg-danger">
-                                    Terlambat
-                                </span>
-
-                                @else
-
-                                <span class="badge bg-success">
-                                    Tepat Waktu
-                                </span>
-
-                                @endif
+        <span class="badge bg-danger">Terlambat</span>
+    @elseif($p->status == 'Tepat Waktu')
+        <span class="badge bg-success">Tepat Waktu</span>
+    @else
+        <span class="badge bg-warning text-dark">{{ $p->status }}</span>
+    @endif
 
                                 @if($p->waktu_edit)
 

@@ -144,7 +144,8 @@ class PresensiApiController extends Controller
                 }
 
                 if (empty($jamMasuk)) {
-                    $status = 'Belum Hadir';
+    // Jika tidak absen pagi tapi absen sore, beri status khusus
+    $status = !empty($jamKeluar) ? 'Tidak Absen Pagi' : 'Belum Hadir';
                 } else {
                     $tanggalCarbon = Carbon::parse($data['tanggal']);
                     
