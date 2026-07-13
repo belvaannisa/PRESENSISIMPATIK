@@ -91,7 +91,7 @@
                     <input type="date"
                         name="tanggal_masuk"
                         class="form-control"
-                        value="{{ old('tanggal_masuk', $karyawan->tanggal_masuk) }}">
+                        value="{{ old('tanggal_masuk', $karyawan->tanggal_masuk?->format('Y-m-d')) }}">
                 </div>
 
                 {{-- STATUS AKTIF --}}
