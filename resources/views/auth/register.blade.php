@@ -150,9 +150,9 @@
             PIMPINAN
         </option>
 
-        <option value="haf">
+        <!-- <option value="haf">
             HEAD ACCOUNTING & FINANCE
-        </option>
+        </option> -->
     </select>
 
 </div>
