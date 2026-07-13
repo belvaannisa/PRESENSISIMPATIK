@@ -1026,7 +1026,7 @@ private function tentukanStatus($jamMasuk, $tanggal): string
             // Masukkan parameter jam_keluar juga
             $status = $this->tentukanStatus($request->jam_masuk, $presensi->tanggal, $request->jam_keluar);
         } else {
-            $status = 'Belum Hadir';
+            $status = 'Tidak absen Pagi';
         }
 
         /*
