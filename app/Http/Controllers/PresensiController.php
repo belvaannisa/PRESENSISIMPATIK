@@ -905,7 +905,7 @@ private function sinkronisasiPresensi(): void
 private function tentukanStatus($jamMasuk, $tanggal): string
     {
         if (empty($jamMasuk)) {
-            return !empty($jamKeluar) ? 'Tidak Absen Pagi' : 'Belum Hadir';
+            return !empty($jamKeluar) ? 'Tidak Absen Pagi' : 'Tidak Absen Pagi & Pulang';
         }
 
         $tanggalCarbon = \Carbon\Carbon::parse($tanggal);
