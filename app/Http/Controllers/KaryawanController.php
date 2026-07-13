@@ -186,7 +186,9 @@ public function store(Request $request)
         'nama' => $request->nama,
         'jabatan' => $request->jabatan,
         'no_hp' => $request->no_hp,
-        'tanggal_masuk' => $request->tanggal_masuk,
+        'tanggal_masuk' => $request->filled('tanggal_masuk')
+            ? $request->tanggal_masuk
+            : $karyawan->tanggal_masuk,
         'status_aktif' => $request->has('status_aktif')
             ? $request->status_aktif
             : $karyawan->status_aktif,
