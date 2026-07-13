@@ -117,68 +117,72 @@ class PresensiApiController extends Controller
 
                 if (!$karyawan) continue;
 
-                $jamMasuk = null;
-                $jamKeluar = null;
+                // Di dalam loop proses data (setelah sorting $scans):
 
-                // LOGIKA: Jika Karyawan Cuma Absen 1 Kali
-                if (count($scans) == 1) {
-                    if (strtotime($scans[0]) >= strtotime($batasTunggal)) {
-                        $jamKeluar = $scans[0]; // Di atas jam 12:30 = Absen Pulang
-                    } else {
-                        $jamMasuk = $scans[0];  // Di bawah jam 12:30 = Absen Masuk
-                    }
-                } 
-                // LOGIKA: Absen Lebih dari 1 Kali
-                else {
-                    $minJam = $scans[0];
-                    $maxJam = end($scans);
+$jamMasuk = null;
+$jamKeluar = null;
 
-                    // DOUBLE TAP (Selisih waktu di bawah 1 Jam)
-                    if (strtotime($maxJam) - strtotime($minJam) < 3600) {
-                        if (strtotime($minJam) >= strtotime($batasTunggal)) {
-                            $jamKeluar = $maxJam; // Double tap saat sore
-                        } else {
-                            $jamMasuk = $minJam;  // Double tap saat pagi
-                        }
-                    } else {
-                        // NORMAL: Tap pagi dan sore
-                        $jamMasuk = $minJam;
-                        $jamKeluar = $maxJam;
-                    }
-                }
+// 1. Tentukan Jam Masuk & Keluar dengan Logika Tunggal/Ganda
+if (count($scans) == 1) {
+    if (strtotime($scans[0]) >= strtotime($batasTunggal)) {
+        $jamKeluar = $scans[0]; 
+    } else {
+        $jamMasuk = $scans[0];  
+    }
+} else {
+    $minJam = $scans[0];
+    $maxJam = end($scans);
+    // Double tap
+    if (strtotime($maxJam) - strtotime($minJam) < 3600) {
+        if (strtotime($minJam) >= strtotime($batasTunggal)) {
+            $jamKeluar = $maxJam;
+        } else {
+            $jamMasuk = $minJam;
+        }
+    } else {
+        $jamMasuk = $minJam;
+        $jamKeluar = $maxJam;
+    }
+}
 
-                // Logika Karyawan "Tidak Terbatas"
-                if (empty($jamKeluar)) {
-                    $tipeKeluar = trim($karyawan->tipe_jam_keluar);
-                    if (strcasecmp($tipeKeluar, 'Tidak Terbatas') == 0 || strcasecmp($tipeKeluar, config('jabatan.tidak_terbatas')) == 0) {
-                        $jamKeluar = config('jabatan.jam_keluar_default', '17:00:00');
-                    }
-                }
+// 2. LOGIKA PENENTUAN STATUS (PENTING: Mencegah salah status)
+if (empty($jamMasuk)) {
+    // Jika tidak ada scan pagi, statusnya Belum Hadir (jangan Tepat Waktu!)
+    $status = 'Belum Hadir';
+} else {
+    // Hanya jika ADA jam masuk, kita hitung telat/tidaknya
+    $tanggalCarbon = Carbon::parse($data['tanggal']);
+    
+    if ($tanggalCarbon->isSunday()) {
+        $totalSundays = 0;
+        for ($i = 1; $i <= $tanggalCarbon->daysInMonth; $i++) {
+            if ($tanggalCarbon->copy()->day($i)->isSunday()) $totalSundays++;
+        }
+        $mingguKe = ceil($tanggalCarbon->day / 7);
+        
+        if ($mingguKe == $totalSundays || $mingguKe == ($totalSundays - 1)) {
+            $status = strtotime($jamMasuk) > strtotime('09:15:00') ? 'Terlambat' : 'Tepat Waktu';
+        } else {
+            $status = 'Tepat Waktu';
+        }
+    } else {
+        // HARI BIASA: Jika jam masuk ada, cek apakah telat dari 08:15
+        $status = strtotime($jamMasuk) > strtotime('08:15:00') ? 'Terlambat' : 'Tepat Waktu';
+    }
+}
 
-                // Logika Status Hari Biasa & Hari Minggu
-                if (empty($jamMasuk)) {
-                    $status = 'Belum Hadir';
-                } else {
-                    $tanggalCarbon = Carbon::parse($data['tanggal']);
-                    
-                    if ($tanggalCarbon->isSunday()) {
-                        $totalSundays = 0;
-                        for ($i = 1; $i <= $tanggalCarbon->daysInMonth; $i++) {
-                            if ($tanggalCarbon->copy()->day($i)->isSunday()) $totalSundays++;
-                        }
-                        $mingguKe = ceil($tanggalCarbon->day / 7);
-
-                        // Aturan: Hanya masuk di 2 minggu terakhir (batas 09:15)
-                        if ($mingguKe == $totalSundays || $mingguKe == ($totalSundays - 1)) {
-                            $status = strtotime($jamMasuk) > strtotime('09:15:00') ? 'Terlambat' : 'Tepat Waktu';
-                        } else {
-                            $status = 'Tepat Waktu';
-                        }
-                    } else {
-                        // Hari Senin - Sabtu (batas 08:15)
-                        $status = strtotime($jamMasuk) > strtotime('08:15:00') ? 'Terlambat' : 'Tepat Waktu';
-                    }
-                }
+// 3. Simpan ke tabel Presensi (Wajib dilakukan di sini agar sinkron)
+Presensi::updateOrCreate(
+    ['karyawan_id' => $karyawan->id, 'tanggal' => $data['tanggal']],
+    [
+        'jam_masuk'  => $jamMasuk,
+        'jam_keluar' => $jamKeluar,
+        'status'     => $status,
+        'keterangan' => 'Hadir',
+        'sumber'     => 'api',
+        'updated_at' => now()
+    ]
+);
 
                 $presensiUpsert[] = [
                     'karyawan_id' => $karyawan->id,
