@@ -12,6 +12,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
 
 class SinkronisasiPresensiJob implements ShouldQueue
 {
@@ -27,30 +28,23 @@ class SinkronisasiPresensiJob implements ShouldQueue
 
     public function handle(): void
     {
-        // 1. Ambil SEMUA log yang masih pending sekaligus
-        $pendingLogs = PresensiLog::where('status_sinkron', 'pending')
-            ->orderBy('tanggal')
-            ->orderBy('jam')
-            ->get();
+        // 1. Ambil log pending
+        $pendingLogs = PresensiLog::where('status_sinkron', 'pending')->get();
+        if ($pendingLogs->isEmpty()) return;
 
-        if ($pendingLogs->isEmpty()) {
-            return;
-        }
+        // Key-by PIN dengan trim agar tidak ada spasi yang nyangkut
+        $karyawanMap = Karyawan::all()->keyBy(function($k) { return trim($k->pin); });
 
-        // 2. Ambil semua Karyawan agar tidak query berulang kali (Super Cepat)
-        $karyawanMap = Karyawan::all()->keyBy('pin');
-
-        // 3. Kelompokkan Log berdasarkan PIN dan Tanggal
         $groupedLogs = $pendingLogs->groupBy(function ($log) {
             return trim($log->pin) . '_' . $log->tanggal;
         });
 
         DB::beginTransaction();
-
         try {
             foreach ($groupedLogs as $groupKey => $logs) {
                 $firstLog = $logs->first();
-                $karyawan = $karyawanMap->get(trim($firstLog->pin));
+                $pinStr = trim($firstLog->pin);
+                $karyawan = $karyawanMap->get($pinStr);
 
                 if (!$karyawan) {
                     PresensiLog::whereIn('id', $logs->pluck('id'))->update([
@@ -61,10 +55,9 @@ class SinkronisasiPresensiJob implements ShouldQueue
                     continue;
                 }
 
-                // 4. Ambil SEMUA scan hari itu (termasuk yg lama) agar jam masuk/keluar presisi
-                $allScans = PresensiLog::where('pin', trim($firstLog->pin))
+                // 2. Ambil SEMUA scan untuk karyawan ini di tanggal tersebut
+                $allScans = PresensiLog::where('pin', $pinStr)
                     ->where('tanggal', $firstLog->tanggal)
-                    ->orderBy('jam')
                     ->get();
 
                 $presensi = Presensi::firstOrNew([
@@ -77,83 +70,77 @@ class SinkronisasiPresensiJob implements ShouldQueue
                     $presensi->sumber     = 'fingerprint';
                 }
 
-                $presensi->jam_masuk  = null;
-                $presensi->jam_keluar = null;
+                /*
+                |--------------------------------------------------------------------------
+                | LOGIKA JAM MASUK & KELUAR (Sangat Akurat, Anti Terbalik)
+                |--------------------------------------------------------------------------
+                */
+                $minJam = $allScans->min('jam'); // Waktu terkecil = Pasti Jam Masuk
+                $maxJam = $allScans->max('jam'); // Waktu terbesar = Pasti Jam Keluar
 
-                // 5. Cari Jam Masuk & Keluar Aktual
-                foreach ($allScans as $scan) {
-                    if (empty($presensi->jam_masuk) || strtotime($scan->jam) < strtotime($presensi->jam_masuk)) {
-                        $presensi->jam_masuk = $scan->jam;
-                    }
-                    if (empty($presensi->jam_keluar) || strtotime($scan->jam) > strtotime($presensi->jam_keluar)) {
-                        $presensi->jam_keluar = $scan->jam;
+                $presensi->jam_masuk = $minJam;
+                
+                // Jika cuma 1 kali scan, ATAU selisih waktu scan < 1 Jam (Double Tap)
+                if ($minJam == $maxJam || (strtotime($maxJam) - strtotime($minJam) < 3600)) {
+                    $presensi->jam_keluar = null; // Dianggap belum absen pulang
+                } else {
+                    $presensi->jam_keluar = $maxJam;
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | LOGIKA DEFAULT 17:00 UNTUK "TIDAK TERBATAS"
+                |--------------------------------------------------------------------------
+                */
+                if (empty($presensi->jam_keluar)) {
+                    $tipeKeluar = trim($karyawan->tipe_jam_keluar);
+                    // Pengecekan ekstra ketat agar config tidak gagal
+                    if ($tipeKeluar == 'Tidak Terbatas' || $tipeKeluar == config('jabatan.tidak_terbatas')) {
+                        $presensi->jam_keluar = config('jabatan.jam_keluar_default', '17:00:00');
                     }
                 }
 
-                // 6. Validasi Mencegah Double Scan Pagi (Kurang dari 1 jam)
-                if (!empty($presensi->jam_masuk) && !empty($presensi->jam_keluar)) {
-                    $selisihDetik = strtotime($presensi->jam_keluar) - strtotime($presensi->jam_masuk);
-                    if ($selisihDetik < 3600) { 
-                        $presensi->jam_keluar = null; // Artinya belum absen pulang
-                    }
-                }
-
-                // 7. Logika JABATAN (Terbatas & Tidak Terbatas)
-                // 7. Tentukan Status Kehadiran & Logika Hari Minggu
+                /*
+                |--------------------------------------------------------------------------
+                | LOGIKA HARI MINGGU & KETERLAMBATAN
+                |--------------------------------------------------------------------------
+                */
                 if (empty($presensi->jam_masuk)) {
                     $presensi->status = 'Belum Hadir';
                 } else {
-                    $tanggalCarbon = \Carbon\Carbon::parse($presensi->tanggal);
+                    $tanggalCarbon = Carbon::parse($presensi->tanggal);
                     
-                    // Cek apakah hari tersebut adalah HARI MINGGU
                     if ($tanggalCarbon->isSunday()) {
-                        
-                        // Cari tahu ini hari minggu ke-berapa dalam bulan tersebut (1, 2, 3, 4, atau 5)
                         $mingguKe = ceil($tanggalCarbon->day / 7);
-                        
                         if ($mingguKe <= 2) {
-                            // MINGGU KE-1 & KE-2: LIBUR
-                            // Jika ada yang absen di hari libur, otomatis tidak dihitung telat
-                            $presensi->status = 'Tepat Waktu';
+                            $presensi->status = 'Tepat Waktu'; // Libur
                         } else {
-                            // MINGGU KE-3, 4, 5: MASUK KERJA
-                            // Jam masuk 09:00, batas telat 09:15
-                            if (strtotime($presensi->jam_masuk) > strtotime('09:15:00')) {
-                                $presensi->status = 'Terlambat';
-                            } else {
-                                $presensi->status = 'Tepat Waktu';
-                            }
+                            $presensi->status = strtotime($presensi->jam_masuk) > strtotime('09:15:00') ? 'Terlambat' : 'Tepat Waktu';
                         }
-                        
                     } else {
-                        // HARI BIASA (Senin - Sabtu)
-                        $batasTelatBiasa = config('jabatan.jam_masuk_default');
-                        if (strtotime($presensi->jam_masuk) > strtotime($batasTelatBiasa)) {
-                            $presensi->status = 'Terlambat';
-                        } else {
-                            $presensi->status = 'Tepat Waktu';
-                        }
+                        // Hari Biasa
+                        $batasNormal = config('jabatan.jam_masuk_default', '08:00:00');
+                        $presensi->status = strtotime($presensi->jam_masuk) > strtotime($batasNormal) ? 'Terlambat' : 'Tepat Waktu';
                     }
                 }
 
-                $presensi->status = empty($presensi->jam_masuk) 
-                    ? 'Belum Hadir' 
-                    : (strtotime($presensi->jam_masuk) > strtotime(config('jabatan.jam_masuk_default')) ? 'Terlambat' : 'Tepat Waktu');
-
                 $presensi->save();
 
-                // 8. Tandai berhasil
+                /*
+                |--------------------------------------------------------------------------
+                | TANDAI SELESAI
+                |--------------------------------------------------------------------------
+                */
                 PresensiLog::whereIn('id', $logs->pluck('id'))->update([
                     'karyawan_id'    => $karyawan->id,
                     'status_sinkron' => 'matched',
-                    'status_server'  => 'pending', 
+                    'status_server'  => 'pending',
                     'catatan'        => 'Sinkronisasi berhasil',
                     'updated_at'     => now()
                 ]);
             }
 
             DB::commit();
-
         } catch (\Throwable $e) {
             DB::rollBack();
             Log::error('Sinkronisasi Gagal: ' . $e->getMessage());
