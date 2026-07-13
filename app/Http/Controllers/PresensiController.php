@@ -904,48 +904,32 @@ private function sinkronisasiPresensi(): void
 
 private function tentukanStatus($jamMasuk, $tanggal): string
     {
-        /*
-        |--------------------------------------------------------------------------
-        | Belum Ada Jam Masuk
-        |--------------------------------------------------------------------------
-        */
         if (empty($jamMasuk)) {
             return 'Belum Hadir';
         }
 
         $tanggalCarbon = \Carbon\Carbon::parse($tanggal);
 
-        /*
-        |--------------------------------------------------------------------------
-        | Logika Khusus Hari Minggu
-        |--------------------------------------------------------------------------
-        */
         if ($tanggalCarbon->isSunday()) {
-            
-            // Cari tahu ini minggu ke-berapa di bulan tersebut
-            $mingguKe = ceil($tanggalCarbon->day / 7);
-
-            // Minggu ke-1 dan ke-2 LIBUR (Otomatis Tepat Waktu jika absen)
-            if ($mingguKe <= 2) {
-                return 'Tepat Waktu';
-            } 
-            // Minggu ke-3, 4, dan 5 MASUK (Batas Telat 09:15)
-            else {
-                return strtotime($jamMasuk) > strtotime('09:15:00') ? 'Terlambat' : 'Tepat Waktu';
+            // Hitung total hari minggu dalam bulan tersebut
+            $totalSundays = 0;
+            for ($i = 1; $i <= $tanggalCarbon->daysInMonth; $i++) {
+                if ($tanggalCarbon->copy()->day($i)->isSunday()) $totalSundays++;
             }
             
+            $mingguKe = ceil($tanggalCarbon->day / 7);
+
+            // Jika hari minggu tersebut adalah 2 hari minggu terakhir di bulan itu
+            if ($mingguKe == $totalSundays || $mingguKe == ($totalSundays - 1)) {
+                return strtotime($jamMasuk) > strtotime('09:15:00') ? 'Terlambat' : 'Tepat Waktu';
+            } else {
+                return 'Tepat Waktu'; // Libur
+            }
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Logika Hari Biasa (Senin - Sabtu)
-        |--------------------------------------------------------------------------
-        */
-        $jamDefault = config('jabatan.jam_masuk_default');
-
-        return strtotime($jamMasuk) > strtotime($jamDefault) ? 'Terlambat' : 'Tepat Waktu';
+        // Jika Hari Biasa (Senin - Sabtu)
+        return strtotime($jamMasuk) > strtotime('08:15:00') ? 'Terlambat' : 'Tepat Waktu';
     }
-  
     private function generateRecordHash($pin, $tanggal, $jam)
     {
         return hash(
