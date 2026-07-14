@@ -54,10 +54,6 @@
         <div class="col-md-3">
     <span class="form-control-plaintext">Bulanan</span>
 </div>
-
-        <div class="col-md-3" id="tanggalField">
-            <input type="date" name="tanggal" value="{{ $tanggal ?? '' }}" class="form-control">
-        </div>
         <div class="col-md-3" id="bulanField" style="display:none;">
             <input type="month" name="bulan" value="{{ $bulan ?? '' }}" class="form-control">
         </div>
