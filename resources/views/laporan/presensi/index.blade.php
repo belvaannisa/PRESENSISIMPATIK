@@ -50,34 +50,71 @@
 
 {{-- FILTER --}}
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-   <form method="GET" class="row g-2 flex-grow-1">
-
-    <div class="col-md-4">
-        <input
-            type="month"
-            name="bulan"
-            class="form-control"
-            value="{{ request('bulan', date('Y-m')) }}"
-            required>
-    </div>
-
-    <div class="col-md-2">
-        <button class="btn btn-dark w-100">
-            Filter
-        </button>
-    </div>
-
-</form>
+    <form method="GET" class="row g-2 flex-grow-1">
+        <div class="col-md-3">
+            <select name="mode" class="form-control" onchange="this.form.submit()">
+                <option value="bulanan" {{ $mode=='bulanan'?'selected':'' }}>Bulanan</option>
+            </select>
+        </div>
+        <div class="col-md-3" id="tanggalField">
+            <input type="date" name="tanggal" value="{{ $tanggal ?? '' }}" class="form-control">
+        </div>
+        <div class="col-md-3" id="bulanField" style="display:none;">
+            <input type="month" name="bulan" value="{{ $bulan ?? '' }}" class="form-control">
+        </div>
+        <div class="col-md-2">
+            <button class="btn btn-dark w-100">Filter</button>
+        </div>
+    </form>
     <div>
-        <a href="{{ route('laporan.presensi.exportPdf', [
-    'bulan' => request('bulan', date('Y-m'))
-]) }}"
-class="btn btn-danger">PRINT
+        <a href="{{ route('laporan.presensi.exportPdf', request()->all()) }}" class="btn btn-danger">
+            <i class="bi bi-file-earmark-pdf-fill"></i> Print PDF
         </a>
     </div>
 </div>
 
+{{-- ================= HARIAN & MINGGUAN ================= --}}
 
+@if($mode=='harian' || $mode=='mingguan')
+
+<div class="table-responsive table-mobile">
+    <table class="table table-bordered table-striped">
+        <thead class="text-center" style="background:#FA713F;color:white;">
+            <tr>
+                <th>Nama</th>
+                <th>Tanggal</th>
+                <th>Masuk</th>
+                <th>Keluar</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse($data as $d)
+            <tr>
+                <td>{{ $d->karyawan->nama ?? '' }}</td>
+                <td class="text-center">
+                    {{ $d->tanggal ? \Carbon\Carbon::parse($d->tanggal)->format('d-m-Y') : '' }}
+                </td>
+                <td class="text-center">{{ $d->jam_masuk ?: '' }}</td>
+                <td class="text-center">{{ $d->jam_keluar ?: '' }}</td>
+                <td class="text-center">
+                    @if($d->status=='Terlambat')
+                        <span class="badge bg-danger">Terlambat</span>
+                    @elseif($d->status=='Tepat Waktu')
+                        <span class="badge bg-success">Tepat Waktu</span>
+                    @else
+                        <span class="badge bg-warning text-dark">{{ $d->status }}</span>
+                    @endif
+                </td>
+            </tr>
+            @empty
+            <tr>
+                <td colspan="5" class="text-center">Tidak Ada Data</td>
+            </tr>
+            @endforelse
+        </tbody>
+    </table>
+</div>
 
 {{-- MOBILE --}}
 <div class="card-mobile">
@@ -102,6 +139,7 @@ class="btn btn-danger">PRINT
     @endforelse
 </div>
 
+@endif
 
 {{-- ================= BULANAN ================= --}}
 
