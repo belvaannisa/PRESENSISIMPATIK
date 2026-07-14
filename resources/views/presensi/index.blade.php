@@ -4,15 +4,11 @@
 <style>
 
 .table-warning{
-
     background-color:#FFF3CD !important;
-
 }
 
 .table-warning:hover{
-
     background-color:#FFE69C !important;
-
 }
 
 </style>
@@ -29,11 +25,12 @@
             <form action="{{ route('presensi.import') }}" method="POST">
                 @csrf
                 <button type="submit" class="btn btn-success btn-sm">
-                    ⬆ Auto Import
+                    ⭐ Auto Import
                 </button>
             </form>
         </div>
-<div class="card-body">
+
+        <div class="card-body">
 
             {{-- TAMPILKAN ALERT JIKA GAGAL / DUPLIKAT --}}
             @if(session('error'))
@@ -52,8 +49,6 @@
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
             @endif
-        
-        <div class="card-body">
 
             {{-- MANUAL UPLOAD --}}
             <form action="{{ route('presensi.upload') }}"
@@ -118,12 +113,12 @@
                             <td class="text-center">
 
                                 @if($p->status == 'Terlambat')
-        <span class="badge bg-danger">Terlambat</span>
-    @elseif($p->status == 'Tepat Waktu')
-        <span class="badge bg-success">Tepat Waktu</span>
-    @else
-        <span class="badge bg-warning text-dark">{{ $p->status }}</span>
-    @endif
+                                    <span class="badge bg-danger">Terlambat</span>
+                                @elseif($p->status == 'Tepat Waktu')
+                                    <span class="badge bg-success">Tepat Waktu</span>
+                                @else
+                                    <span class="badge bg-warning text-dark">{{ $p->status }}</span>
+                                @endif
 
                                 @if($p->waktu_edit)
 
@@ -131,7 +126,7 @@
 
                                 <small class="text-warning fw-bold">
 
-                                ✏ Pernah Diedit
+                                ✏️ Pernah Diedit
 
                                 </small>
 
@@ -206,7 +201,7 @@
                     </tbody>
                 </table>
             </div>
-        </div>
+
             {{-- ================= MOBILE CARD ================= --}}
             <div class="d-lg-none">
 
@@ -247,9 +242,13 @@
                                 <span class="badge bg-danger">
                                     Terlambat
                                 </span>
-                            @else
+                            @elseif($p->status == 'Tepat Waktu')
                                 <span class="badge bg-success">
                                     Tepat Waktu
+                                </span>
+                            @else
+                                <span class="badge bg-warning text-dark">
+                                    {{ $p->status }}
                                 </span>
                             @endif
 
@@ -259,7 +258,7 @@
 
                             <span class="badge bg-warning text-dark">
 
-                            ✏ Pernah Diedit
+                            ✏️ Pernah Diedit
 
                             </span>
 
