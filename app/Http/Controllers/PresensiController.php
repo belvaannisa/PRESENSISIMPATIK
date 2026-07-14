@@ -180,56 +180,90 @@ return back()->with(
 }
 
  public function upload(Request $request)
-{
-    $request->validate([
-        'file' => 'required|mimes:csv,txt,xls,xlsx'
-    ]);
+    {
+        $request->validate([
+            'file' => 'required|mimes:csv,txt,xls,xlsx'
+        ]);
 
-    try {
+        try {
 
-        DB::beginTransaction();
+            DB::beginTransaction();
 
-        $file = $request->file('file');
+            $file = $request->file('file');
 
-        $rows = $this->bacaFile(
-            $file->getRealPath(),
-            $file->getClientOriginalExtension()
-        );
+            $rows = $this->bacaFile(
+                $file->getRealPath(),
+                $file->getClientOriginalExtension()
+            );
 
-        /*
-        |--------------------------------------------------------------------------
-        | Simpan Ke Presensi Log
-        |--------------------------------------------------------------------------
-        */
+            /*
+            |--------------------------------------------------------------------------
+            | Cek Duplikat File
+            |--------------------------------------------------------------------------
+            */
+            $uploadedHashes = [];
 
-        $this->prosesRows($rows);
+            foreach ($rows as $index => $row) {
+                if ($index === 0) continue; // Lewati header tabel
+                
+                if (!$this->validasiBaris($row, $index)) continue;
 
-        DB::commit();
+                try {
+                    $datetime = new \DateTime(trim($row[3]));
+                    $pin = trim($row[2]);
+                    $tanggal = $datetime->format('Y-m-d');
+                    $jam = $datetime->format('H:i:s');
+                    
+                    $recordHash = $this->generateRecordHash($pin, $tanggal, $jam);
+                    $uploadedHashes[] = $recordHash;
+                } catch (\Throwable $e) {
+                    continue;
+                }
+            }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Dispatch Queue Sinkronisasi
-        |--------------------------------------------------------------------------
-        */
-$this->dispatchPendingLogs();
+            // Validasi: Jika total data di file sama dengan total data yang sudah ada di database = Duplikat
+            if (count($uploadedHashes) > 0) {
+                $existingCount = PresensiLog::whereIn('record_hash', $uploadedHashes)->count();
+                
+                if ($existingCount >= count($uploadedHashes)) {
+                    DB::rollBack(); // Batalkan proses simpan
+                    return back()->with('error', 'File Sudah Pernah Di Unggah');
+                }
+            }
 
-return back()->with(
-    'success',
-    'Import berhasil. Data sedang diproses di background.'
-);
+            /*
+            |--------------------------------------------------------------------------
+            | Simpan Ke Presensi Log
+            |--------------------------------------------------------------------------
+            */
+            $this->prosesRows($rows);
 
-    } catch (\Throwable $e) {
+            DB::commit();
 
-        DB::rollBack();
+            /*
+            |--------------------------------------------------------------------------
+            | Dispatch Queue Sinkronisasi
+            |--------------------------------------------------------------------------
+            */
+            $this->dispatchPendingLogs();
 
-        Log::error($e);
+            return back()->with(
+                'success',
+                'Import berhasil. Data sedang diproses di background.'
+            );
 
-        return back()->with(
-            'error',
-            $e->getMessage()
-        );
+        } catch (\Throwable $e) {
+
+            DB::rollBack();
+
+            Log::error($e);
+
+            return back()->with(
+                'error',
+                $e->getMessage()
+            );
+        }
     }
-}   
 
     private function validasiBaris(array $row, int $index): bool
 {

@@ -43,109 +43,30 @@
 <div class="card shadow-sm">
 
 <div class="card-header text-white" style="background:#FA713F;">
-    <h5 class="mb-0">Laporan Presensi</h5>
+    <h5 class="mb-0">Laporan Presensi Bulanan</h5>
 </div>
 
 <div class="card-body">
 
-{{-- FILTER --}}
+{{-- FILTER HANYA UNTUK BULANAN --}}
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <form method="GET" class="row g-2 flex-grow-1">
-        <div class="col-md-3">
-            <select name="mode" class="form-control" onchange="this.form.submit()">
-                <option value="harian" {{ $mode=='harian'?'selected':'' }}>Harian</option>
-                <option value="mingguan" {{ $mode=='mingguan'?'selected':'' }}>Mingguan</option>
-                <option value="bulanan" {{ $mode=='bulanan'?'selected':'' }}>Bulanan</option>
-            </select>
-        </div>
-        <div class="col-md-3" id="tanggalField">
-            <input type="date" name="tanggal" value="{{ $tanggal ?? '' }}" class="form-control">
-        </div>
-        <div class="col-md-3" id="bulanField" style="display:none;">
-            <input type="month" name="bulan" value="{{ $bulan ?? '' }}" class="form-control">
+        {{-- Sembunyikan input mode agar controller tetap membaca ini sebagai request bulanan --}}
+        <input type="hidden" name="mode" value="bulanan">
+        
+        <div class="col-md-4">
+            <input type="month" name="bulan" value="{{ request('bulan', date('Y-m')) }}" class="form-control" required>
         </div>
         <div class="col-md-2">
             <button class="btn btn-dark w-100">Filter</button>
         </div>
     </form>
     <div>
-        <a href="{{ route('laporan.presensi.exportPdf', request()->all()) }}" class="btn btn-danger">
+        <a href="{{ route('laporan.presensi.exportPdf', request()->all() + ['mode' => 'bulanan']) }}" class="btn btn-danger">
             <i class="bi bi-file-earmark-pdf-fill"></i> Print PDF
         </a>
     </div>
 </div>
-
-{{-- ================= HARIAN & MINGGUAN ================= --}}
-
-@if($mode=='harian' || $mode=='mingguan')
-
-<div class="table-responsive table-mobile">
-    <table class="table table-bordered table-striped">
-        <thead class="text-center" style="background:#FA713F;color:white;">
-            <tr>
-                <th>Nama</th>
-                <th>Tanggal</th>
-                <th>Masuk</th>
-                <th>Keluar</th>
-                <th>Status</th>
-            </tr>
-        </thead>
-        <tbody>
-            @forelse($data as $d)
-            <tr>
-                <td>{{ $d->karyawan->nama ?? '' }}</td>
-                <td class="text-center">
-                    {{ $d->tanggal ? \Carbon\Carbon::parse($d->tanggal)->format('d-m-Y') : '' }}
-                </td>
-                <td class="text-center">{{ $d->jam_masuk ?: '' }}</td>
-                <td class="text-center">{{ $d->jam_keluar ?: '' }}</td>
-                <td class="text-center">
-                    @if($d->status=='Terlambat')
-                        <span class="badge bg-danger">Terlambat</span>
-                    @elseif($d->status=='Tepat Waktu')
-                        <span class="badge bg-success">Tepat Waktu</span>
-                    @else
-                        <span class="badge bg-warning text-dark">{{ $d->status }}</span>
-                    @endif
-                </td>
-            </tr>
-            @empty
-            <tr>
-                <td colspan="5" class="text-center">Tidak Ada Data</td>
-            </tr>
-            @endforelse
-        </tbody>
-    </table>
-</div>
-
-{{-- MOBILE --}}
-<div class="card-mobile">
-    @forelse($data as $d)
-    <div class="card-item">
-        <h6>{{ $d->karyawan->nama ?? '' }}</h6>
-        <p>Tanggal : {{ $d->tanggal ? \Carbon\Carbon::parse($d->tanggal)->format('d-m-Y') : '' }}</p>
-        <p>Masuk : {{ $d->jam_masuk ?: '' }}</p>
-        <p>Keluar : {{ $d->jam_keluar ?: '' }}</p>
-        <p>Status :
-            @if($d->status=='Terlambat')
-                <span class="badge bg-danger">Terlambat</span>
-            @elseif($d->status=='Tepat Waktu')
-                <span class="badge bg-success">Tepat Waktu</span>
-            @else
-                <span class="badge bg-warning text-dark">{{ $d->status }}</span>
-            @endif
-        </p>
-    </div>
-    @empty
-    <div class="text-center">Tidak Ada Data</div>
-    @endforelse
-</div>
-
-@endif
-
-{{-- ================= BULANAN ================= --}}
-
-@if($mode=='bulanan')
 
 {{-- ================= REKAP PRESENSI STAFF ================= --}}
 
@@ -343,30 +264,9 @@ new Chart(document.getElementById('chartPresensi'), {
     }
 });
 </script>
-@endif
 
 </div>
 </div>
 </div>
 
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-    const mode = document.querySelector('[name="mode"]');
-    const tanggalField = document.getElementById('tanggalField');
-    const bulanField = document.getElementById('bulanField');
-
-    function toggle() {
-        if (mode.value === 'bulanan') {
-            tanggalField.style.display = 'none';
-            bulanField.style.display = 'block';
-        } else {
-            tanggalField.style.display = 'block';
-            bulanField.style.display = 'none';
-        }
-    }
-
-    toggle();
-    mode.addEventListener('change', toggle);
-});
-</script>
 @endsection

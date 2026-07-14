@@ -33,7 +33,26 @@
                 </button>
             </form>
         </div>
+<div class="card-body">
 
+            {{-- TAMPILKAN ALERT JIKA GAGAL / DUPLIKAT --}}
+            @if(session('error'))
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    <strong>Gagal!</strong> {{ session('error') }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            @endif
+
+            {{-- TAMPILKAN ALERT JIKA SUKSES --}}
+            @if(session('success'))
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="bi bi-check-circle-fill me-2"></i>
+                    {{ session('success') }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            @endif
+        
         <div class="card-body">
 
             {{-- MANUAL UPLOAD --}}
@@ -187,7 +206,7 @@
                     </tbody>
                 </table>
             </div>
-
+        </div>
             {{-- ================= MOBILE CARD ================= --}}
             <div class="d-lg-none">
 
