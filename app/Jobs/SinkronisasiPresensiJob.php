@@ -28,15 +28,12 @@ class SinkronisasiPresensiJob implements ShouldQueue
 
     public function handle(): void
     {
-        // Ambil semua log yang belum diproses
         $pendingLogs = PresensiLog::where('status_sinkron', 'pending')->get();
         if ($pendingLogs->isEmpty()) return;
 
-        // Ambil data terkait
         $affectedPins = $pendingLogs->pluck('pin')->map(function($p) { return trim($p); })->unique();
         $affectedDates = $pendingLogs->pluck('tanggal')->unique();
 
-        // 1. Kumpulkan semua histori scan di hari itu (Biar Jam Masuk & Keluar selalu presisi)
         $allScans = PresensiLog::whereIn('pin', $affectedPins)
             ->whereIn('tanggal', $affectedDates)
             ->get();
@@ -45,7 +42,6 @@ class SinkronisasiPresensiJob implements ShouldQueue
             ->get()
             ->keyBy(function($k) { return trim($k->pin); });
 
-        // Group per PIN dan Tanggal
         $groupedLogs = $allScans->groupBy(function ($log) {
             return trim($log->pin) . '_' . $log->tanggal;
         });
@@ -53,6 +49,8 @@ class SinkronisasiPresensiJob implements ShouldQueue
         DB::beginTransaction();
 
         try {
+            $batasTunggal = config('jabatan.batas_scan_tunggal', '12:30:00');
+
             foreach ($groupedLogs as $groupKey => $logs) {
                 $firstLog = $logs->first();
                 $pinStr = trim($firstLog->pin);
@@ -77,19 +75,38 @@ class SinkronisasiPresensiJob implements ShouldQueue
                     $presensi->sumber     = 'fingerprint';
                 }
 
-                // 2. Logika Penentuan Jam Masuk & Keluar
-                $minJam = $logs->min('jam');
-                $maxJam = $logs->max('jam');
-
-                $presensi->jam_masuk = $minJam;
+                // Susun array jam untuk karyawan ini
+                $scansArray = $logs->pluck('jam')->sort()->values()->all();
                 
-                if ($minJam == $maxJam || (strtotime($maxJam) - strtotime($minJam) < 3600)) {
-                    $presensi->jam_keluar = null;
+                $jamMasuk = null;
+                $jamKeluar = null;
+
+                if (count($scansArray) == 1) {
+                    if (strtotime($scansArray[0]) >= strtotime($batasTunggal)) {
+                        $jamKeluar = $scansArray[0]; 
+                    } else {
+                        $jamMasuk = $scansArray[0];  
+                    }
                 } else {
-                    $presensi->jam_keluar = $maxJam;
+                    $minJam = $scansArray[0];
+                    $maxJam = end($scansArray);
+
+                    if (strtotime($maxJam) - strtotime($minJam) < 3600) {
+                        if (strtotime($minJam) >= strtotime($batasTunggal)) {
+                            $jamKeluar = $maxJam; 
+                        } else {
+                            $jamMasuk = $minJam;  
+                        }
+                    } else {
+                        $jamMasuk = $minJam;
+                        $jamKeluar = $maxJam;
+                    }
                 }
 
-                // 3. Logika Tidak Terbatas
+                $presensi->jam_masuk = $jamMasuk;
+                $presensi->jam_keluar = $jamKeluar;
+
+                // Logika Tidak Terbatas
                 if (empty($presensi->jam_keluar)) {
                     $tipeKeluar = trim($karyawan->tipe_jam_keluar);
                     if (strcasecmp($tipeKeluar, 'Tidak Terbatas') == 0 || strcasecmp($tipeKeluar, config('jabatan.tidak_terbatas')) == 0) {
@@ -97,9 +114,10 @@ class SinkronisasiPresensiJob implements ShouldQueue
                     }
                 }
 
-                // 4. Logika Hari Biasa & Hari Minggu
-                if (empty($presensi->jam_masuk)) {
-                    $presensi->status = 'Belum Hadir';
+                // Logika Status
+               if (empty($jamMasuk)) {
+    // Jika tidak absen pagi tapi absen sore, beri status khusus
+    $status = !empty($jamKeluar) ? 'Tidak Absen Pagi' : 'Belum Hadir';
                 } else {
                     $tanggalCarbon = Carbon::parse($presensi->tanggal);
                     
@@ -110,21 +128,18 @@ class SinkronisasiPresensiJob implements ShouldQueue
                         }
                         $mingguKe = ceil($tanggalCarbon->day / 7);
 
-                        // Aturan: Hanya masuk di 2 minggu terakhir
                         if ($mingguKe == $totalSundays || $mingguKe == ($totalSundays - 1)) {
                             $presensi->status = strtotime($presensi->jam_masuk) > strtotime('09:15:00') ? 'Terlambat' : 'Tepat Waktu';
                         } else {
-                            $presensi->status = 'Tepat Waktu'; // Libur
+                            $presensi->status = 'Tepat Waktu'; 
                         }
                     } else {
-                        // Hari Biasa
                         $presensi->status = strtotime($presensi->jam_masuk) > strtotime('08:15:00') ? 'Terlambat' : 'Tepat Waktu';
                     }
                 }
 
                 $presensi->save();
 
-                // Tandai Selesai
                 PresensiLog::whereIn('id', $logs->pluck('id'))->update([
                     'karyawan_id'    => $karyawan->id,
                     'status_sinkron' => 'matched',

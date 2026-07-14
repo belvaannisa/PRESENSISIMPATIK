@@ -905,7 +905,7 @@ private function sinkronisasiPresensi(): void
 private function tentukanStatus($jamMasuk, $tanggal): string
     {
         if (empty($jamMasuk)) {
-            return 'Belum Hadir';
+            return !empty($jamKeluar) ? 'Tidak Absen Pagi' : 'Tidak Absen Pagi & Pulang';
         }
 
         $tanggalCarbon = \Carbon\Carbon::parse($tanggal);
@@ -1022,10 +1022,11 @@ private function tentukanStatus($jamMasuk, $tanggal): string
         | Hitung Status Otomatis (Mengirimkan Parameter Tanggal Juga)
         |--------------------------------------------------------------------------
         */
-        if ($request->filled('jam_masuk')) {
-            $status = $this->tentukanStatus($request->jam_masuk, $presensi->tanggal);
+       if ($request->filled('jam_masuk') || $request->filled('jam_keluar')) {
+            // Masukkan parameter jam_keluar juga
+            $status = $this->tentukanStatus($request->jam_masuk, $presensi->tanggal, $request->jam_keluar);
         } else {
-            $status = 'Belum Hadir';
+            $status = 'Tidak absen Pagi';
         }
 
         /*

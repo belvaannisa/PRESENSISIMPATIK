@@ -5,19 +5,15 @@
 <style>
 /* ================= MOBILE ================= */
 @media (max-width:768px){
-
     .container{
         padding:10px !important;
     }
-
     .table-mobile{
         display:none;
     }
-
     .card-mobile{
         display:block;
     }
-
     .card-item{
         border:1px solid #ddd;
         border-radius:10px;
@@ -25,27 +21,20 @@
         margin-bottom:10px;
         background:#fff;
     }
-
     .card-item h6{
         font-size:14px;
         margin-bottom:5px;
     }
-
     .card-item p{
         font-size:13px;
         margin-bottom:3px;
     }
-
 }
-
 /* ================= DESKTOP ================= */
-
 @media(min-width:769px){
-
     .card-mobile{
         display:none;
     }
-
 }
 </style>
 
@@ -61,9 +50,7 @@
 
 {{-- FILTER --}}
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-
     <form method="GET" class="row g-2 flex-grow-1">
-
         <div class="col-md-3">
             <select name="mode" class="form-control" onchange="this.form.submit()">
                 <option value="harian" {{ $mode=='harian'?'selected':'' }}>Harian</option>
@@ -71,27 +58,21 @@
                 <option value="bulanan" {{ $mode=='bulanan'?'selected':'' }}>Bulanan</option>
             </select>
         </div>
-
         <div class="col-md-3" id="tanggalField">
             <input type="date" name="tanggal" value="{{ $tanggal ?? '' }}" class="form-control">
         </div>
-
         <div class="col-md-3" id="bulanField" style="display:none;">
             <input type="month" name="bulan" value="{{ $bulan ?? '' }}" class="form-control">
         </div>
-
         <div class="col-md-2">
             <button class="btn btn-dark w-100">Filter</button>
         </div>
-
     </form>
-
     <div>
         <a href="{{ route('laporan.presensi.exportPdf', request()->all()) }}" class="btn btn-danger">
             <i class="bi bi-file-earmark-pdf-fill"></i> Print PDF
         </a>
     </div>
-
 </div>
 
 {{-- ================= HARIAN & MINGGUAN ================= --}}
@@ -121,8 +102,10 @@
                 <td class="text-center">
                     @if($d->status=='Terlambat')
                         <span class="badge bg-danger">Terlambat</span>
-                    @else
+                    @elseif($d->status=='Tepat Waktu')
                         <span class="badge bg-success">Tepat Waktu</span>
+                    @else
+                        <span class="badge bg-warning text-dark">{{ $d->status }}</span>
                     @endif
                 </td>
             </tr>
@@ -146,8 +129,10 @@
         <p>Status :
             @if($d->status=='Terlambat')
                 <span class="badge bg-danger">Terlambat</span>
-            @else
+            @elseif($d->status=='Tepat Waktu')
                 <span class="badge bg-success">Tepat Waktu</span>
+            @else
+                <span class="badge bg-warning text-dark">{{ $d->status }}</span>
             @endif
         </p>
     </div>
@@ -165,7 +150,6 @@
 {{-- ================= REKAP PRESENSI STAFF ================= --}}
 
 <div class="table-responsive table-mobile">
-
     <h5 class="mb-3 d-flex align-items-center gap-2">
         Rekap Presensi Staff
         @if(isset($startDate) && isset($endDate))
@@ -174,7 +158,6 @@
             </span>
         @endif
     </h5>
-
     <table class="table table-bordered table-striped">
         <thead class="text-center" style="background:#FA713F;color:white;">
             <tr>
@@ -224,7 +207,6 @@
             </span>
         @endif
     </h5>
-
     <table class="table table-bordered table-striped">
         <thead class="text-center" style="background:#FA713F;color:white;">
             <tr>
@@ -267,7 +249,6 @@
 
 {{-- ================= MOBILE ================= --}}
 <div class="card-mobile">
-
     {{-- STAFF --}}
     <h6 class="mb-3">
         Rekap Presensi Staff
@@ -276,7 +257,6 @@
             <small class="text-muted">{{ \Carbon\Carbon::parse($startDate)->translatedFormat('d M Y') }} - {{ \Carbon\Carbon::parse($endDate)->translatedFormat('d M Y') }}</small>
         @endif
     </h6>
-
     @forelse($rekapStaff as $r)
     <div class="card-item">
         <h6>{{ $r['nama'] }}</h6>
@@ -313,7 +293,6 @@
             <small class="text-muted">{{ \Carbon\Carbon::parse($startDate)->translatedFormat('d M Y') }} - {{ \Carbon\Carbon::parse($endDate)->translatedFormat('d M Y') }}</small>
         @endif
     </h6>
-
     @forelse($rekapNonStaff as $r)
     <div class="card-item">
         <h6>{{ $r['nama'] }}</h6>
@@ -339,7 +318,6 @@
     @empty
     <div class="text-center text-muted">Tidak ada data Non Staff</div>
     @endforelse
-
 </div>
 
 {{-- Grafik --}}
@@ -348,7 +326,6 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <script>
 let hadir = {{ collect($rekapStaff)->sum('hadir') }} + {{ collect($rekapNonStaff)->sum('hadir') }};
 let telat = {{ collect($rekapStaff)->sum('telat') }} + {{ collect($rekapNonStaff)->sum('telat') }};
@@ -392,5 +369,4 @@ document.addEventListener("DOMContentLoaded", function () {
     mode.addEventListener('change', toggle);
 });
 </script>
-
 @endsection
