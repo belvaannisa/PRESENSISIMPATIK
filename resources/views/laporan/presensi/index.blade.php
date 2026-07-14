@@ -52,10 +52,9 @@
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <form method="GET" class="row g-2 flex-grow-1">
         <div class="col-md-3">
-            <select name="mode" class="form-control" onchange="this.form.submit()">
-                <option value="bulanan" {{ $mode=='bulanan'?'selected':'' }}>Bulanan</option>
-            </select>
-        </div>
+    <span class="form-control-plaintext">Bulanan</span>
+</div>
+
         <div class="col-md-3" id="tanggalField">
             <input type="date" name="tanggal" value="{{ $tanggal ?? '' }}" class="form-control">
         </div>
