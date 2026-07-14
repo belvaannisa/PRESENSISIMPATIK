@@ -50,17 +50,24 @@
 
 {{-- FILTER --}}
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-    <form method="GET" class="row g-2 flex-grow-1">
-        <div class="col-md-3">
-    <span class="form-control-plaintext">Bulanan</span>
-</div>
-        <div class="col-md-3" id="bulanField" style="display:none;">
-            <input type="month" name="bulan" value="{{ $bulan ?? '' }}" class="form-control">
-        </div>
-        <div class="col-md-2">
-            <button class="btn btn-dark w-100">Filter</button>
-        </div>
-    </form>
+ <form method="GET" class="row g-2 flex-grow-1">
+    <!-- Mode Filter Tetap Bulanan (Bukan Select) -->
+    <div class="col-md-3 d-flex align-items-center">
+        <span class="fw-bold">Mode: Bulanan</span>
+        <input type="hidden" name="mode" value="bulanan">
+    </div>
+
+    <!-- Input Filter Hanya Bulan dan Tahun -->
+    <div class="col-md-4" id="bulanField">
+        <input type="month" name="bulan" value="{{ $bulan ?? '' }}" class="form-control">
+    </div>
+
+    <!-- Tombol Aksi -->
+    <div class="col-md-2">
+        <button type="submit" class="btn btn-dark w-100">Filter</button>
+    </div>
+</form>
+
     <div>
         <a href="{{ route('laporan.presensi.exportPdf', request()->all()) }}" class="btn btn-danger">
             <i class="bi bi-file-earmark-pdf-fill"></i> Print PDF
