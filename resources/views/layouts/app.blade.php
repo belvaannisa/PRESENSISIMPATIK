@@ -48,7 +48,17 @@
     @yield('header')
 
     {{-- Content --}}
-   
+    <main class="py-4">
+        <div class="container">
+
+            
+
+            {{-- Isi Halaman --}}
+            @yield('content')
+
+        </div>
+    </main>
+
     <!-- Bootstrap JS (HARUS di bawah) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
