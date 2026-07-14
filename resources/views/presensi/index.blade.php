@@ -32,24 +32,6 @@
 
         <div class="card-body">
 
-            {{-- TAMPILKAN ALERT JIKA GAGAL / DUPLIKAT --}}
-            @if(session('error'))
-                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                    <strong>Gagal!</strong> {{ session('error') }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            @endif
-
-            {{-- TAMPILKAN ALERT JIKA SUKSES --}}
-            @if(session('success'))
-                <div class="alert alert-success alert-dismissible fade show" role="alert">
-                    <i class="bi bi-check-circle-fill me-2"></i>
-                    {{ session('success') }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            @endif
-
             {{-- MANUAL UPLOAD --}}
             <form action="{{ route('presensi.upload') }}"
                   method="POST"
@@ -121,15 +103,10 @@
                                 @endif
 
                                 @if($p->waktu_edit)
-
                                 <br>
-
                                 <small class="text-warning fw-bold">
-
                                 ✏️ Pernah Diedit
-
                                 </small>
-
                                 @endif
 
                             </td>
@@ -144,25 +121,15 @@
                             <td class="text-center">
 
                                 @if($p->editor)
-
                                 <strong>
-
                                 {{ $p->editor->name }}
-
                                 </strong>
-
                                 <br>
-
                                 <small class="text-muted">
-
                                 {{ \Carbon\Carbon::parse($p->waktu_edit)->format('d-m-Y H:i') }}
-
                                 </small>
-
                                 @else
-
                                 -
-
                                 @endif
 
                                 </td>
@@ -253,17 +220,11 @@
                             @endif
 
                             @if($p->waktu_edit)
-
                             <div class="mt-2">
-
-                            <span class="badge bg-warning text-dark">
-
-                            ✏️ Pernah Diedit
-
-                            </span>
-
+                                <span class="badge bg-warning text-dark">
+                                ✏️ Pernah Diedit
+                                </span>
                             </div>
-
                             @endif
                         </div>
 

@@ -51,8 +51,28 @@
     <main class="py-4">
         <div class="container">
 
+            {{-- ============================================ --}}
+            {{-- NOTIFIKASI GLOBAL (Sukses & Error) --}}
+            {{-- ============================================ --}}
             
+            @if(session('success'))
+                <div class="alert alert-success alert-dismissible fade show mt-3 shadow-sm" role="alert">
+                    <i class="bi bi-check-circle-fill me-2"></i>
+                    <strong>Berhasil!</strong> {{ session('success') }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            @endif
 
+            @if(session('error'))
+                <div class="alert alert-danger alert-dismissible fade show mt-3 shadow-sm" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    <strong>Gagal!</strong> {{ session('error') }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            @endif
+
+            {{-- ============================================ --}}
+            
             {{-- Isi Halaman --}}
             @yield('content')
 
