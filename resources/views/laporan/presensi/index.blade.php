@@ -78,6 +78,7 @@ class="btn btn-danger">PRINT
 </div>
 
 
+
 {{-- MOBILE --}}
 <div class="card-mobile">
     @forelse($data as $d)
