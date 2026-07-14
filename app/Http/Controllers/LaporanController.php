@@ -158,7 +158,7 @@ class LaporanController extends Controller
                     $rekapNonStaff[] = $item;
                 }
             }
-
+                
             return view('laporan.presensi.index', compact(
                 'rekapStaff',
                 'rekapNonStaff',
