@@ -53,7 +53,7 @@
  <form method="GET" class="row g-2 flex-grow-1">
     <!-- Mode Filter Tetap Bulanan (Bukan Select) -->
     <div class="col-md-3 d-flex align-items-center">
-        <span class="fw-bold">Mode: Bulanan</span>
+        <span class="fw-bold">Laporan Presensi Bulanan</span>
         <input type="hidden" name="mode" value="bulanan">
     </div>
 
