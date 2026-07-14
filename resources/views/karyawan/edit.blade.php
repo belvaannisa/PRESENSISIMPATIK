@@ -46,12 +46,12 @@
                 @csrf
                 @method('PUT')
                 <div class="mb-3">
-    <label class="form-label">PIN Fingerprint</label>
-    <input type="text"
-           name="pin"
-           class="form-control"
-           value="{{ old('pin', $karyawan->pin ?? '') }}">
-</div>
+                    <label class="form-label">PIN Fingerprint</label>
+                    <input type="text"
+                        name="pin"
+                        class="form-control"
+                        value="{{ old('pin', $karyawan->pin ?? '') }}" readonly>
+                </div>
 
                 {{-- NAMA --}}
                 <div class="mb-3">
