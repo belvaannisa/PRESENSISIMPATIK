@@ -92,7 +92,7 @@
             </tr>
         </thead>
         <tbody>
-            @forelse($rekapStaff as $r)
+            @forelse($rekapStaff ?? [] as $r)
             <tr>
                 <td>{{ $r['nama'] }}</td>
                 <td class="text-center">{{ $r['hadir'] }}</td>
@@ -141,7 +141,7 @@
             </tr>
         </thead>
         <tbody>
-            @forelse($rekapNonStaff as $r)
+            @forelse($rekapNonStaff ?? [] as $r)
             <tr>
                 <td>{{ $r['nama'] }}</td>
                 <td class="text-center">{{ $r['hadir'] }}</td>
@@ -178,7 +178,7 @@
             <small class="text-muted">{{ \Carbon\Carbon::parse($startDate)->translatedFormat('d M Y') }} - {{ \Carbon\Carbon::parse($endDate)->translatedFormat('d M Y') }}</small>
         @endif
     </h6>
-    @forelse($rekapStaff as $r)
+    @forelse($rekapStaff ?? [] as $r)
     <div class="card-item">
         <h6>{{ $r['nama'] }}</h6>
         <p>Hadir : <strong>{{ $r['hadir'] }}</strong></p>
@@ -214,7 +214,7 @@
             <small class="text-muted">{{ \Carbon\Carbon::parse($startDate)->translatedFormat('d M Y') }} - {{ \Carbon\Carbon::parse($endDate)->translatedFormat('d M Y') }}</small>
         @endif
     </h6>
-    @forelse($rekapNonStaff as $r)
+    @forelse($rekapNonStaff ?? [] as $r)
     <div class="card-item">
         <h6>{{ $r['nama'] }}</h6>
         <p>Hadir : <strong>{{ $r['hadir'] }}</strong></p>
@@ -248,9 +248,9 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-let hadir = {{ collect($rekapStaff)->sum('hadir') }} + {{ collect($rekapNonStaff)->sum('hadir') }};
-let telat = {{ collect($rekapStaff)->sum('telat') }} + {{ collect($rekapNonStaff)->sum('telat') }};
-let ketidakhadiran = {{ collect($rekapStaff)->sum('ketidakhadiran') }} + {{ collect($rekapNonStaff)->sum('ketidakhadiran') }};
+let hadir = {{ collect($rekapStaff ?? [])->sum('hadir') }} + {{ collect($rekapNonStaff ?? [])->sum('hadir') }};
+let telat = {{ collect($rekapStaff ?? [])->sum('telat') }} + {{ collect($rekapNonStaff ?? [])->sum('telat') }};
+let ketidakhadiran = {{ collect($rekapStaff ?? [])->sum('ketidakhadiran') }} + {{ collect($rekapNonStaff ?? [])->sum('ketidakhadiran') }};
 
 new Chart(document.getElementById('chartPresensi'), {
     type: 'bar',
