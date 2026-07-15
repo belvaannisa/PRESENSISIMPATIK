@@ -106,8 +106,7 @@ class LaporanController extends Controller
                     ->get();
 
                 $hadir = $presensi->count();
-                // [REVISI]: Hitung 'Terlambat' dan 'Tidak Absen Pagi' sebagai pemotong insentif
-                $telat = $presensi->whereIn('status', ['Terlambat', 'Tidak Absen Pagi'])->count();
+                $telat = $presensi->where('status', 'Terlambat')->count();
                 $hariKerja = 28;
                 $nilaiDisiplin = max(0, $hadir - $telat);
 
@@ -246,8 +245,7 @@ class LaporanController extends Controller
                     ->get();
 
                 $hadir = $presensi->count();
-                // [REVISI]: Hitung 'Terlambat' dan 'Tidak Absen Pagi' sebagai pemotong insentif
-                $telat = $presensi->whereIn('status', ['Terlambat', 'Tidak Absen Pagi'])->count();
+                $telat = $presensi->where('status', 'Terlambat')->count();
                 $hariKerja = 28;
                 $nilaiDisiplin = max(0, $hadir - $telat);
 
