@@ -158,12 +158,15 @@
             </span>
         @endif
     </h5>
+   {{-- ... (kode bagian atas tetap sama hingga tag <table> Rekap Staff) ... --}}
+
     <table class="table table-bordered table-striped">
         <thead class="text-center" style="background:#FA713F;color:white;">
             <tr>
                 <th>Nama</th>
                 <th>Hadir</th>
-                <th>Terlambat</th>
+                {{-- REVISI: Mengubah judul kolom agar lebih jelas --}}
+                <th>Terlambat / Tdk Absen Pagi</th> 
                 <th>Ketidakhadiran</th>
                 <th>Keterangan</th>
                 <th>Persentase</th>
@@ -175,6 +178,7 @@
             <tr>
                 <td>{{ $r['nama'] }}</td>
                 <td class="text-center">{{ $r['hadir'] }}</td>
+                {{-- Angka tetap mengambil dari $r['telat'] yang sudah mencakup kedua kondisi --}}
                 <td class="text-center text-danger">{{ $r['telat'] }}</td>
                 <td class="text-center">{{ $r['ketidakhadiran'] }}</td>
                 <td class="text-center">
@@ -190,12 +194,12 @@
                 </td>
             </tr>
             @empty
-            <tr>
-                <td colspan="7" class="text-center">Tidak Ada Data Staff</td>
-            </tr>
+            <tr><td colspan="7" class="text-center">Tidak Ada Data Staff</td></tr>
             @endforelse
         </tbody>
     </table>
+
+{{-- ... (Ulangi perubahan judul kolom yang sama pada tabel REKAP PRESENSI NON STAFF dan bagian Mobile Card di bawahnya) ... --}}
 
 {{-- ================= REKAP PRESENSI NON STAFF ================= --}}
 
@@ -207,12 +211,15 @@
             </span>
         @endif
     </h5>
+   {{-- ... (kode bagian atas tetap sama hingga tag <table> Rekap Staff) ... --}}
+
     <table class="table table-bordered table-striped">
         <thead class="text-center" style="background:#FA713F;color:white;">
             <tr>
                 <th>Nama</th>
                 <th>Hadir</th>
-                <th>Terlambat</th>
+                {{-- REVISI: Mengubah judul kolom agar lebih jelas --}}
+                <th>Terlambat / Tdk Absen Pagi</th> 
                 <th>Ketidakhadiran</th>
                 <th>Keterangan</th>
                 <th>Persentase</th>
@@ -220,10 +227,11 @@
             </tr>
         </thead>
         <tbody>
-            @forelse($rekapNonStaff as $r)
+            @forelse($rekapStaff as $r)
             <tr>
                 <td>{{ $r['nama'] }}</td>
                 <td class="text-center">{{ $r['hadir'] }}</td>
+                {{-- Angka tetap mengambil dari $r['telat'] yang sudah mencakup kedua kondisi --}}
                 <td class="text-center text-danger">{{ $r['telat'] }}</td>
                 <td class="text-center">{{ $r['ketidakhadiran'] }}</td>
                 <td class="text-center">
@@ -234,17 +242,17 @@
                     @endif
                 </td>
                 <td class="text-center">{{ $r['persen'] }}%</td>
-               <td class="text-end pe-3 text-success fw-bold">
+                <td class="text-end pe-3 text-success fw-bold">
                     Rp {{ number_format($r['insentif'],0,',','.') }}
                 </td>
             </tr>
             @empty
-            <tr>
-                <td colspan="7" class="text-center">Tidak Ada Data Non Staff</td>
-            </tr>
+            <tr><td colspan="7" class="text-center">Tidak Ada Data Staff</td></tr>
             @endforelse
         </tbody>
     </table>
+
+{{-- ... (Ulangi perubahan judul kolom yang sama pada tabel REKAP PRESENSI NON STAFF dan bagian Mobile Card di bawahnya) ... --}}
 </div> {{-- table-responsive --}}
 
 {{-- ================= MOBILE ================= --}}
