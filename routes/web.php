@@ -114,7 +114,7 @@ Route::middleware([
         KaryawanController::class,
         'destroy'
     ])->name('karyawan.destroy');
-
+Route::post('/karyawan/pengaturan-jam', [App\Http\Controllers\KaryawanController::class, 'updatePengaturanJam'])->name('karyawan.update_pengaturan_jam');
 });
 
 /*

@@ -140,71 +140,35 @@ setlocale(LC_TIME, 'id_ID.UTF-8', 'id_ID', 'Indonesian');
 
     </thead>
 
-    <tbody>
+   {{-- Cari bagian <tbody> di dalam tabel presensi pada file pdf.blade.php Anda --}}
 
+<tbody>
     @forelse($presensis as $presensi)
-
     <tr>
-
-        <td class="text-center">
-            {{ $loop->iteration }}
-        </td>
-
-        <td class="text-center">
-            {{ \Carbon\Carbon::parse($presensi->tanggal)->translatedFormat('l') }}
-        </td>
-
-        <td class="text-center">
-            {{ \Carbon\Carbon::parse($presensi->tanggal)->format('d-m-Y') }}
-        </td>
-
-        <td class="text-center">
-            {{ $presensi->jam_masuk ?: '-' }}
-        </td>
-
-        <td class="text-center">
-            {{ $presensi->jam_keluar ?: '-' }}
-        </td>
-
+        <td class="text-center">{{ $loop->iteration }}</td>
+        <td class="text-center">{{ \Carbon\Carbon::parse($presensi->tanggal)->translatedFormat('l') }}</td>
+        <td class="text-center">{{ \Carbon\Carbon::parse($presensi->tanggal)->format('d-m-Y') }}</td>
+        <td class="text-center">{{ $presensi->jam_masuk ?: '-' }}</td>
+        <td class="text-center">{{ $presensi->jam_keluar ?: '-' }}</td>
         <td class="text-center">
 
+            {{-- REVISI: Tambahkan kondisi untuk "Tidak Absen Pagi" agar berwarna merah seperti Terlambat --}}
             @if($presensi->status == 'Tepat Waktu')
-
-                <span class="tepat">
-                    Tepat Waktu
-                </span>
-
-            @elseif($presensi->status == 'Terlambat')
-
-                <span class="terlambat">
-                    Terlambat
-                </span>
-
+                <span class="tepat">Tepat Waktu</span>
+            @elseif($presensi->status == 'Terlambat' || $presensi->status == 'Tidak Absen Pagi')
+                <span class="terlambat">{{ $presensi->status }}</span>
             @else
-
-                <span class="terlambat">
-                    Tidak Hadir
-                </span>
-
+                <span class="terlambat">Tidak Hadir</span>
             @endif
 
         </td>
-
     </tr>
-
     @empty
-
     <tr>
-
-        <td colspan="6" class="text-center">
-            Belum Ada Data Presensi.
-        </td>
-
+        <td colspan="6" class="text-center">Belum Ada Data Presensi.</td>
     </tr>
-
     @endforelse
-
-    </tbody>
+</tbody>
 
 </table>
 

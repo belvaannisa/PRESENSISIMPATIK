@@ -11,24 +11,33 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use Illuminate\Support\Facades\File;
 
 class PresensiController extends Controller
 {
-    
     /*
     |--------------------------------------------------------------------------
-    | Menentukan Tipe Jam Keluar
+    | FUNGSI BANTUAN UNTUK MEMBACA PENGATURAN JSON (Sinkron dengan Karyawan)
     |--------------------------------------------------------------------------
     */
+    private function getJabatanTidakTerbatas(): array
+    {
+        $path = storage_path('app/pengaturan_jabatan.json');
+        
+        if (File::exists($path)) {
+            return json_decode(File::get($path), true) ?? [];
+        }
+        
+        return config('jabatan.jabatan_tidak_terbatas', []);
+    }
+
     private function getTipeJamKeluar(string $jabatan): string
     {
-        return in_array(
-            strtoupper(trim($jabatan)),
-            config('jabatan.jabatan_tidak_terbatas'),
-            true
-        )
-            ? config('jabatan.tidak_terbatas')
-            : config('jabatan.terbatas');
+        $jabatanTidakTerbatas = $this->getJabatanTidakTerbatas();
+
+        return in_array(strtoupper(trim($jabatan)), array_map('strtoupper', $jabatanTidakTerbatas))
+            ? config('jabatan.tidak_terbatas', 'Tidak Terbatas')
+            : config('jabatan.terbatas', 'Terbatas');
     }
 
     public function index(Request $request)

@@ -114,40 +114,37 @@
 
 <h3 style="margin-bottom:10px;">Rekap Presensi Non Staff</h3>
 <table>
-    <thead>
-        <tr>
-            <th>Nama</th>
-            <th>Hadir</th>
-            <th>Terlambat</th>
-            <th>Ketidakhadiran</th>
-            <th>Keterangan</th>
-            <th>Persentase</th>
-            <th>Insentif</th>
-        </tr>
-    </thead>
-    <tbody>
-    @forelse($rekapNonStaff as $r)
-        <tr>
-            <td>{{ $r['nama'] }}</td>
-            <td class="text-center">{{ $r['hadir'] }}</td>
-            <td class="text-center">{{ $r['telat'] }}</td>
-            <td class="text-center">{{ $r['ketidakhadiran'] }}</td>
-            <td class="text-center">
-                @if($r['keterangan']=="Disiplin")
-                    <span class="tepat">Disiplin</span>
-                @else
-                    <span class="terlambat">Kurang Disiplin</span>
-                @endif
-            </td>
-            <td class="text-center">{{ $r['persen'] }}%</td>
-            <td class="text-right">Rp {{ number_format($r['insentif'],0,',','.') }}</td>
-        </tr>
-    @empty
-        <tr>
-            <td colspan="7" class="text-center">Tidak ada data Non Staff.</td>
-        </tr>
-    @endforelse
-    </tbody>
+   {{-- ... (Cari bagian thead di dalam tabel rekap laporan bulanan) ... --}}
+
+<thead class="text-center" style="background:#FA713F; color:white;">
+    <tr>
+        <th>Nama</th>
+        <th>Hadir</th>
+        {{-- REVISI: Judul kolom diubah agar mencakup kedua status pemotongan --}}
+        <th>Terlambat / Tdk Absen Pagi</th> 
+        <th>Ketidakhadiran</th>
+        <th>Keterangan</th>
+        <th>Persentase</th>
+        <th>Insentif</th>
+    </tr>
+</thead>
+
+<tbody>
+    @foreach($rekapStaff as $r)
+    <tr>
+        <td>{{ $r['nama'] }}</td>
+        <td class="text-center">{{ $r['hadir'] }}</td>
+        {{-- Data di bawah ini tetap mengambil variabel yang sama yang sudah kita hitung di Controller --}}
+        <td class="text-center">{{ $r['telat'] }}</td> 
+        <td class="text-center">{{ $r['ketidakhadiran'] }}</td>
+        <td class="text-center">{{ $r['keterangan'] }}</td>
+        <td class="text-center">{{ $r['persen'] }}%</td>
+        <td class="text-center">Rp {{ number_format($r['insentif'],0,',','.') }}</td>
+    </tr>
+    @endforeach
+    
+    {{-- Lakukan perubahan judul kolom yang sama pada tabel REKAP PRESENSI NON STAFF di bawahnya --}}
+</tbody>
 </table>
 
 <div class="footer">
