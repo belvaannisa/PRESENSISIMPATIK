@@ -8,10 +8,10 @@ use App\Models\PresensiLog;
 use App\Jobs\SinkronisasiPresensiJob;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use Illuminate\Support\Facades\File;
+use Carbon\Carbon;
 
 class PresensiController extends Controller
 {
@@ -306,18 +306,13 @@ class PresensiController extends Controller
     {
         /*
         |--------------------------------------------------------------------------
-        | Urutkan Scan Berdasarkan Jam
+        | Urutkan Scan Berdasarkan Jam (Di-sinkronkan dengan logika Job)
         |--------------------------------------------------------------------------
         */
         $logs = $logs->sortBy('jam')->values();
 
         if ($logs->isEmpty()) return;
 
-        /*
-        |--------------------------------------------------------------------------
-        | Ambil / Buat Presensi
-        |--------------------------------------------------------------------------
-        */
         $presensi = Presensi::firstOrNew([
             'karyawan_id' => $karyawan->id,
             'tanggal'     => $logs->first()->tanggal
@@ -330,55 +325,63 @@ class PresensiController extends Controller
 
         /*
         |--------------------------------------------------------------------------
-        | Proses Semua Scan
+        | Logika Single Scan & Multi Scan (Identik dengan SinkronisasiPresensiJob)
         |--------------------------------------------------------------------------
         */
-        foreach ($logs as $log) {
-            // Jam Masuk
-            if (empty($presensi->jam_masuk) || strtotime($log->jam) < strtotime($presensi->jam_masuk)) {
-                $presensi->jam_masuk = $log->jam;
-            }
+        $batasTunggal = config('jabatan.batas_scan_tunggal', '12:30:00');
+        $scansArray = $logs->pluck('jam')->sort()->values()->all();
+        
+        $jamMasuk = null;
+        $jamKeluar = null;
 
-            // Jam Keluar
-            if ($karyawan->tipe_jam_keluar == config('jabatan.tidak_terbatas')) {
-                if (empty($presensi->jam_keluar) || strtotime($log->jam) > strtotime($presensi->jam_keluar)) {
-                    $presensi->jam_keluar = $log->jam;
+        if (count($scansArray) == 1) {
+            if (strtotime($scansArray[0]) >= strtotime($batasTunggal)) {
+                $jamKeluar = $scansArray[0]; 
+            } else {
+                $jamMasuk = $scansArray[0];  
+            }
+        } else {
+            $minJam = $scansArray[0];
+            $maxJam = end($scansArray);
+
+            if (strtotime($maxJam) - strtotime($minJam) < 3600) {
+                if (strtotime($minJam) >= strtotime($batasTunggal)) {
+                    $jamKeluar = $maxJam; 
+                } else {
+                    $jamMasuk = $minJam;  
                 }
             } else {
-                if (strtotime($log->jam) >= strtotime(config('jabatan.jam_keluar_default'))) {
-                    if (empty($presensi->jam_keluar) || strtotime($log->jam) > strtotime($presensi->jam_keluar)) {
-                        $presensi->jam_keluar = $log->jam;
-                    }
-                }
+                $jamMasuk = $minJam;
+                $jamKeluar = $maxJam;
+            }
+        }
+
+        $presensi->jam_masuk = $jamMasuk;
+        $presensi->jam_keluar = $jamKeluar;
+
+        /*
+        |--------------------------------------------------------------------------
+        | Logika Jam Keluar Pegawai Tidak Terbatas
+        |--------------------------------------------------------------------------
+        */
+        if (empty($presensi->jam_keluar)) {
+            $tipeKeluar = trim($karyawan->tipe_jam_keluar);
+            if (strcasecmp($tipeKeluar, 'Tidak Terbatas') == 0 || strcasecmp($tipeKeluar, config('jabatan.tidak_terbatas')) == 0) {
+                $presensi->jam_keluar = config('jabatan.jam_keluar_default', '17:00:00');
             }
         }
 
         /*
         |--------------------------------------------------------------------------
-        | Pegawai Terbatas Tidak Absen Pulang
+        | Tentukan Status 
         |--------------------------------------------------------------------------
         */
-        if ($karyawan->tipe_jam_keluar == config('jabatan.terbatas') && empty($presensi->jam_keluar)) {
-            $presensi->jam_keluar = null;
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Status
-        |--------------------------------------------------------------------------
-        */
-        // Mengirimkan tiga parameter: jam_masuk, tanggal, jam_keluar
         $presensi->status = $this->tentukanStatus(
             $presensi->jam_masuk, 
             $presensi->tanggal,
             $presensi->jam_keluar
         );
 
-        /*
-        |--------------------------------------------------------------------------
-        | Simpan
-        |--------------------------------------------------------------------------
-        */
         $presensi->save();
     }
 
@@ -440,7 +443,7 @@ class PresensiController extends Controller
             return !empty($jamKeluar) ? 'Tidak Absen Pagi' : 'Belum Hadir';
         }
 
-        $tanggalCarbon = \Carbon\Carbon::parse($tanggal);
+        $tanggalCarbon = Carbon::parse($tanggal);
 
         if ($tanggalCarbon->isSunday()) {
             $totalSundays = 0;
