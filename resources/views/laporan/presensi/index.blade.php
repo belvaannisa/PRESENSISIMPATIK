@@ -19,7 +19,7 @@
 <div class="container mt-4">
     <div class="card shadow-sm">
         <div class="card-header text-white" style="background:#FA713F;">
-            <h5 class="mb-0">Laporan Presensi</h5>
+            <h5 class="mb-0">Laporan Presensi (Rekapitulasi)</h5>
         </div>
 
         <div class="card-body">
@@ -30,34 +30,27 @@
                     <div class="col-md-3">
                         <label class="form-label fw-bold">Mode Laporan</label>
                         <select name="mode" id="modeSelect" class="form-select">
-                            <option value="harian" {{ request('mode') == 'harian' ? 'selected' : '' }}>Harian</option>
-                            <option value="mingguan" {{ request('mode') == 'mingguan' ? 'selected' : '' }}>Mingguan</option>
-                            <option value="bulanan" {{ request('mode') == 'bulanan' ? 'selected' : '' }}>Bulanan (26 ke 25)</option>
+                            <option value="bulanan" {{ request('mode') == 'bulanan' ? 'selected' : '' }}>Bulanan (Default 26 ke 25)</option>
                             <option value="custom" {{ request('mode') == 'custom' ? 'selected' : '' }}>Rentang Waktu (Custom)</option>
                         </select>
                     </div>
 
-                    <div class="col-md-3" id="tanggalField" style="display:none;">
-                        <label class="form-label fw-bold">Pilih Tanggal</label>
-                        <input type="date" name="tanggal" value="{{ request('tanggal', now()->toDateString()) }}" class="form-control">
-                    </div>
-
-                    <div class="col-md-3" id="bulanField" style="display:none;">
+                    <div class="col-md-3" id="bulanField">
                         <label class="form-label fw-bold">Pilih Bulan</label>
                         <input type="month" name="bulan" value="{{ request('bulan', now()->format('Y-m')) }}" class="form-control">
                     </div>
 
-                    <div class="col-md-2" id="startDateField" style="display:none;">
+                    <div class="col-md-3" id="startDateField" style="display:none;">
                         <label class="form-label fw-bold">Dari Tanggal</label>
                         <input type="date" name="start_date" value="{{ request('start_date', now()->startOfMonth()->format('Y-m-d')) }}" class="form-control">
                     </div>
 
-                    <div class="col-md-2" id="endDateField" style="display:none;">
+                    <div class="col-md-3" id="endDateField" style="display:none;">
                         <label class="form-label fw-bold">Sampai Tanggal</label>
                         <input type="date" name="end_date" value="{{ request('end_date', now()->endOfMonth()->format('Y-m-d')) }}" class="form-control">
                     </div>
 
-                    <div class="col-md-2 d-flex gap-2">
+                    <div class="col-md-3 d-flex gap-2">
                         <button type="submit" class="btn btn-dark w-100">Filter</button>
                         <a href="{{ route('laporan.presensi.exportPdf', request()->all()) }}" class="btn btn-danger w-100">
                             <i class="bi bi-file-earmark-pdf-fill"></i> PDF
@@ -65,69 +58,6 @@
                     </div>
                 </form>
             </div>
-
-            {{-- ================= HARIAN & MINGGUAN ================= --}}
-            @if(isset($mode) && ($mode == 'harian' || $mode == 'mingguan'))
-            <div class="table-responsive table-mobile">
-                <table class="table table-bordered table-striped">
-                    <thead class="text-center" style="background:#FA713F;color:white;">
-                        <tr>
-                            <th>Nama</th>
-                            <th>Tanggal</th>
-                            <th>Masuk</th>
-                            <th>Keluar</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($data as $d)
-                        <tr>
-                            <td>{{ $d->karyawan->nama ?? '' }}</td>
-                            <td class="text-center">{{ $d->tanggal ? \Carbon\Carbon::parse($d->tanggal)->format('d-m-Y') : '' }}</td>
-                            <td class="text-center">{{ $d->jam_masuk ?: '' }}</td>
-                            <td class="text-center">{{ $d->jam_keluar ?: '' }}</td>
-                            <td class="text-center">
-                                @if($d->status == 'Terlambat' || $d->status == 'Tidak Absen Pagi')
-                                    <span class="badge bg-danger">{{ $d->status }}</span>
-                                @elseif($d->status == 'Tepat Waktu')
-                                    <span class="badge bg-success">Tepat Waktu</span>
-                                @else
-                                    <span class="badge bg-warning text-dark">{{ $d->status }}</span>
-                                @endif
-                            </td>
-                        </tr>
-                        @empty
-                        <tr><td colspan="5" class="text-center">Tidak Ada Data</td></tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-
-            {{-- MOBILE HARIAN/MINGGUAN --}}
-            <div class="card-mobile">
-                @forelse($data as $d)
-                <div class="card-item">
-                    <h6>{{ $d->karyawan->nama ?? '' }}</h6>
-                    <p>Tanggal : {{ $d->tanggal ? \Carbon\Carbon::parse($d->tanggal)->format('d-m-Y') : '' }}</p>
-                    <p>Masuk : {{ $d->jam_masuk ?: '-' }} | Keluar : {{ $d->jam_keluar ?: '-' }}</p>
-                    <p>Status :
-                        @if($d->status == 'Terlambat' || $d->status == 'Tidak Absen Pagi')
-                            <span class="badge bg-danger">{{ $d->status }}</span>
-                        @elseif($d->status == 'Tepat Waktu')
-                            <span class="badge bg-success">Tepat Waktu</span>
-                        @else
-                            <span class="badge bg-warning text-dark">{{ $d->status }}</span>
-                        @endif
-                    </p>
-                </div>
-                @empty
-                <div class="text-center">Tidak Ada Data</div>
-                @endforelse
-            </div>
-            @endif
-
-            {{-- ================= BULANAN & CUSTOM ================= --}}
-            @if(isset($mode) && ($mode == 'bulanan' || $mode == 'custom'))
             
             <div class="table-responsive table-mobile">
                 {{-- STAFF --}}
@@ -267,7 +197,6 @@
                 }
             });
             </script>
-            @endif
 
         </div>
     </div>
@@ -276,14 +205,12 @@
 <script>
 document.addEventListener("DOMContentLoaded", function () {
     const modeSelect = document.getElementById('modeSelect');
-    const tanggalField = document.getElementById('tanggalField');
     const bulanField = document.getElementById('bulanField');
     const startDateField = document.getElementById('startDateField');
     const endDateField = document.getElementById('endDateField');
 
     function toggleFields() {
         const mode = modeSelect.value;
-        tanggalField.style.display = (mode === 'harian' || mode === 'mingguan') ? 'block' : 'none';
         bulanField.style.display = (mode === 'bulanan') ? 'block' : 'none';
         startDateField.style.display = (mode === 'custom') ? 'block' : 'none';
         endDateField.style.display = (mode === 'custom') ? 'block' : 'none';
