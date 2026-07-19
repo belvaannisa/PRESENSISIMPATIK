@@ -31,145 +31,141 @@ class LaporanController extends Controller
         'OFFICE BOY CABANG',
     ];
 
-    public function presensi(Request $request)
-    {
-        $mode = $request->mode ?? 'harian';
-        $tanggal = $request->tanggal ?? now()->toDateString();
-        $bulan = $request->bulan ?? now()->format('Y-m');
+    public function presensi(Request $request) 
+{ 
+    $mode = $request->mode ?? 'harian'; 
+    $tanggal = $request->tanggal ?? now()->toDateString(); 
+    $bulan = $request->bulan ?? now()->format('Y-m'); 
 
-        /*
-        |--------------------------------------------------------------------------
-        | HARIAN
-        |--------------------------------------------------------------------------
-        */
-        if ($mode == 'harian') {
+    /* 
+    |-------------------------------------------------------------------------- 
+    | HARIAN 
+    |-------------------------------------------------------------------------- 
+    */ 
+    if ($mode == 'harian') { 
+        $presensis = Presensi::with('karyawan') 
+            ->where('tanggal', 'LIKE', $tanggal . '%') 
+            ->orderBy('tanggal', 'DESC') 
+            ->get(); 
 
-            $data = Presensi::with('karyawan')
-                ->where('tanggal', 'LIKE', $tanggal . '%')
-                ->orderBy('tanggal', 'DESC')
-                ->get();
+        return view('laporan.presensi.index', compact( 
+            'presensis', 
+            'mode', 
+            'tanggal' 
+        )); 
+    } 
 
-            return view('laporan.presensi.index', compact(
-                'data',
-                'mode',
-                'tanggal'
-            ));
-        }
+    /* 
+    |-------------------------------------------------------------------------- 
+    | MINGGUAN 
+    |-------------------------------------------------------------------------- 
+    */ 
+    if ($mode == 'mingguan') { 
+        $start = Carbon::parse($tanggal) 
+            ->startOfWeek() 
+            ->toDateString(); 
+        $end = Carbon::parse($tanggal) 
+            ->endOfWeek() 
+            ->toDateString(); 
 
-        /*
-        |--------------------------------------------------------------------------
-        | MINGGUAN
-        |--------------------------------------------------------------------------
-        */
-        if ($mode == 'mingguan') {
+        $presensis = Presensi::with('karyawan') 
+            ->whereBetween('tanggal', [$start, $end]) 
+            ->orderBy('tanggal', 'DESC') 
+            ->get(); 
 
-            $start = Carbon::parse($tanggal)
-                ->startOfWeek()
-                ->toDateString();
+        return view('laporan.presensi.index', compact( 
+            'presensis', 
+            'mode', 
+            'tanggal' 
+        )); 
+    } 
 
-            $end = Carbon::parse($tanggal)
-                ->endOfWeek()
-                ->toDateString();
+    /* 
+    |-------------------------------------------------------------------------- 
+    | BULANAN 
+    |-------------------------------------------------------------------------- 
+    */ 
+    if ($mode == 'bulanan') { 
+        $selectedDate = Carbon::parse($bulan); 
+        $startDate = $selectedDate->copy()->subMonth()->day(26)->format('Y-m-d'); 
+        $endDate = $selectedDate->copy()->day(25)->format('Y-m-d'); 
 
-            $data = Presensi::with('karyawan')
-                ->whereBetween('tanggal', [$start, $end])
-                ->orderBy('tanggal', 'DESC')
-                ->get();
+        $karyawans = Karyawan::orderBy('nama')->get(); 
+        $rekapStaff = []; 
+        $rekapNonStaff = []; 
 
-            return view('laporan.presensi.index', compact(
-                'data',
-                'mode',
-                'tanggal'
-            ));
-        }
+        foreach ($karyawans as $k) { 
+            $presensi = Presensi::where('karyawan_id', $k->id) 
+                ->whereBetween('tanggal', [$startDate, $endDate]) 
+                ->get(); 
 
-        /*
-        |--------------------------------------------------------------------------
-        | BULANAN
-        |--------------------------------------------------------------------------
-        */
-        if ($mode == 'bulanan') {
+            $hadir = $presensi->count(); 
+            
+            // Menghitung Terlambat dan Tidak Absen Pagi sebagai pengurang kedisiplinan/insentif 
+            $telat = $presensi->whereIn('status', ['Terlambat', 'Tidak Absen Pagi'])->count(); 
+            $hariKerja = 28; 
+            $nilaiDisiplin = max(0, $hadir - $telat); 
 
-            $selectedDate = Carbon::parse($bulan);
-            $startDate = $selectedDate->copy()->subMonth()->day(26)->format('Y-m-d');
-            $endDate   = $selectedDate->copy()->day(25)->format('Y-m-d');
+            // =============================== 
+            // Ketidakhadiran 
+            // =============================== 
+            if ($hadir == 0) { 
+                $ketidakhadiran = 0; 
+            } else { 
+                $ketidakhadiran = $hariKerja - $hadir; 
+            } 
 
-            $karyawans = Karyawan::orderBy('nama')->get();
+            // =============================== 
+            // Persentase 
+            // =============================== 
+            if ($hadir == 0) { 
+                $persen = '-'; 
+            } else { 
+                $persen = round(($nilaiDisiplin / $hariKerja) * 100, 1); 
+            } 
 
-            $rekapStaff = [];
-            $rekapNonStaff = [];
+            // =============================== 
+            // Keterangan 
+            // =============================== 
+            if ($hadir >= 20 && $telat <= 3) { 
+                $keterangan = 'Disiplin'; 
+            } else { 
+                $keterangan = 'Kurang Disiplin'; 
+            } 
 
-            foreach ($karyawans as $k) {
+            // =============================== 
+            // Insentif 
+            // =============================== 
+            $insentif = $nilaiDisiplin * 15000; 
 
-                $presensi = Presensi::where('karyawan_id', $k->id)
-                    ->whereBetween('tanggal', [$startDate, $endDate])
-                    ->get();
+            $item = [ 
+                'nama' => $k->nama, 
+                'hadir' => $hadir, 
+                'telat' => $telat, 
+                'ketidakhadiran' => $ketidakhadiran, 
+                'keterangan' => $keterangan, 
+                'persen' => $persen, 
+                'insentif' => $insentif 
+            ]; 
 
-                $hadir = $presensi->count();
-                // Menghitung Terlambat dan Tidak Absen Pagi sebagai pengurang kedisiplinan/insentif
-                $telat = $presensi->whereIn('status', ['Terlambat', 'Tidak Absen Pagi'])->count();
-                $hariKerja = 28;
-                $nilaiDisiplin = max(0, $hadir - $telat);
+            if (in_array($k->jabatan, $this->staffJabatan)) { 
+                $rekapStaff[] = $item; 
+            } else { 
+                $rekapNonStaff[] = $item; 
+            } 
+        } 
 
-                // ===============================
-                // Ketidakhadiran
-                // ===============================
-                if ($hadir == 0) {
-                    $ketidakhadiran = 0;
-                } else {
-                    $ketidakhadiran = $hariKerja - $hadir;
-                }
+        return view('laporan.presensi.index', compact( 
+            'rekapStaff', 
+            'rekapNonStaff', 
+            'mode', 
+            'bulan', 
+            'startDate', 
+            'endDate' 
+        )); 
+    } 
+}
 
-                // ===============================
-                // Persentase
-                // ===============================
-                if ($hadir == 0) {
-                    $persen = '-';
-                } else {
-                    $persen = round(($nilaiDisiplin / $hariKerja) * 100, 1);
-                }
-
-                // ===============================
-                // Keterangan
-                // ===============================
-                if ($hadir >= 20 && $telat <= 3) {
-                    $keterangan = 'Disiplin';
-                } else {
-                    $keterangan = 'Kurang Disiplin';
-                }
-
-                // ===============================
-                // Insentif
-                // ===============================
-                $insentif = $nilaiDisiplin * 15000;
-
-                $item = [
-                    'nama' => $k->nama,
-                    'hadir' => $hadir,
-                    'telat' => $telat,
-                    'ketidakhadiran' => $ketidakhadiran,
-                    'keterangan' => $keterangan,
-                    'persen' => $persen,
-                    'insentif' => $insentif
-                ];
-
-                if (in_array($k->jabatan, $this->staffJabatan)) {
-                    $rekapStaff[] = $item;
-                } else {
-                    $rekapNonStaff[] = $item;
-                }
-            }
-                
-            return view('laporan.presensi.index', compact(
-                'rekapStaff',
-                'rekapNonStaff',
-                'mode',
-                'bulan',
-                'startDate',
-                'endDate'
-            ));
-        }
-    }
 
     /*
     |--------------------------------------------------------------------------
@@ -177,167 +173,163 @@ class LaporanController extends Controller
     |--------------------------------------------------------------------------
     */
 
-    public function exportPdf(Request $request)
-    {
-        $mode = $request->mode ?? 'harian';
-        $tanggal = $request->tanggal ?? now()->toDateString();
-        $bulan = $request->bulan ?? now()->format('Y-m');
+   public function exportPdf(Request $request) 
+{ 
+    $mode = $request->mode ?? 'harian'; 
+    $tanggal = $request->tanggal ?? now()->toDateString(); 
+    $bulan = $request->bulan ?? now()->format('Y-m'); 
 
-        /*
-        |--------------------------------------------------------------------------
-        | DEFAULT VARIABLE
-        |--------------------------------------------------------------------------
-        */
-        $data = collect();
-        $rekapStaff = [];
-        $rekapNonStaff = [];
+    /* 
+    |-------------------------------------------------------------------------- 
+    | DEFAULT VARIABLE 
+    |-------------------------------------------------------------------------- 
+    */ 
+    $presensis = collect(); 
+    $rekapStaff = []; 
+    $rekapNonStaff = []; 
 
-        /*
-        |--------------------------------------------------------------------------
-        | HARIAN
-        |--------------------------------------------------------------------------
-        */
-        if ($mode == 'harian') {
+    /* 
+    |-------------------------------------------------------------------------- 
+    | HARIAN 
+    |-------------------------------------------------------------------------- 
+    */ 
+    if ($mode == 'harian') { 
+        $presensis = Presensi::with('karyawan') 
+            ->where('tanggal', 'LIKE', $tanggal . '%') 
+            ->orderBy('tanggal', 'DESC') 
+            ->get(); 
+    } 
 
-            $data = Presensi::with('karyawan')
-                ->where('tanggal', 'LIKE', $tanggal . '%')
-                ->orderBy('tanggal', 'DESC')
-                ->get();
-        }
+    /* 
+    |-------------------------------------------------------------------------- 
+    | MINGGUAN 
+    |-------------------------------------------------------------------------- 
+    */ 
+    elseif ($mode == 'mingguan') { 
+        $start = Carbon::parse($tanggal) 
+            ->startOfWeek() 
+            ->toDateString(); 
+        $end = Carbon::parse($tanggal) 
+            ->endOfWeek() 
+            ->toDateString(); 
 
-        /*
-        |--------------------------------------------------------------------------
-        | MINGGUAN
-        |--------------------------------------------------------------------------
-        */
-        elseif ($mode == 'mingguan') {
+        $presensis = Presensi::with('karyawan') 
+            ->whereBetween('tanggal', [$start, $end]) 
+            ->orderBy('tanggal', 'DESC') 
+            ->get(); 
+    } 
 
-            $start = Carbon::parse($tanggal)
-                ->startOfWeek()
-                ->toDateString();
+    /* 
+    |-------------------------------------------------------------------------- 
+    | BULANAN 
+    |-------------------------------------------------------------------------- 
+    */ 
+    elseif ($mode == 'bulanan') { 
+        $selectedDate = Carbon::parse($bulan); 
+        $startDate = $selectedDate->copy()->subMonth()->day(26)->format('Y-m-d'); 
+        $endDate = $selectedDate->copy()->day(25)->format('Y-m-d'); 
 
-            $end = Carbon::parse($tanggal)
-                ->endOfWeek()
-                ->toDateString();
+        $karyawans = Karyawan::orderBy('nama')->get(); 
 
-            $data = Presensi::with('karyawan')
-                ->whereBetween('tanggal', [$start, $end])
-                ->orderBy('tanggal', 'DESC')
-                ->get();
-        }
+        foreach ($karyawans as $k) { 
+            $presensi = Presensi::where('karyawan_id', $k->id) 
+                ->whereBetween('tanggal', [$startDate, $endDate]) 
+                ->get(); 
 
-        /*
-        |--------------------------------------------------------------------------
-        | BULANAN
-        |--------------------------------------------------------------------------
-        */
-        elseif ($mode == 'bulanan') {
+            $hadir = $presensi->count(); 
+            
+            // Menghitung Terlambat dan Tidak Absen Pagi sebagai pengurang kedisiplinan/insentif 
+            $telat = $presensi->whereIn('status', ['Terlambat', 'Tidak Absen Pagi'])->count(); 
+            $hariKerja = 28; 
+            $nilaiDisiplin = max(0, $hadir - $telat); 
 
-            $selectedDate = Carbon::parse($bulan);
-            $startDate = $selectedDate->copy()->subMonth()->day(26)->format('Y-m-d');
-            $endDate   = $selectedDate->copy()->day(25)->format('Y-m-d');
+            // =============================== 
+            // Ketidakhadiran 
+            // =============================== 
+            if ($hadir == 0) { 
+                $ketidakhadiran = 0; 
+            } else { 
+                $ketidakhadiran = $hariKerja - $hadir; 
+            } 
 
-            $karyawans = Karyawan::orderBy('nama')->get();
+            // =============================== 
+            // Persentase 
+            // =============================== 
+            if ($hadir == 0) { 
+                $persen = '-'; 
+            } else { 
+                $persen = round(($nilaiDisiplin / $hariKerja) * 100, 1); 
+            } 
 
-            foreach ($karyawans as $k) {
+            // =============================== 
+            // Keterangan 
+            // =============================== 
+            if ($hadir >= 20 && $telat <= 3) { 
+                $keterangan = 'Disiplin'; 
+            } else { 
+                $keterangan = 'Kurang Disiplin'; 
+            } 
 
-                $presensi = Presensi::where('karyawan_id', $k->id)
-                    ->whereBetween('tanggal', [$startDate, $endDate])
-                    ->get();
+            // =============================== 
+            // Insentif 
+            // =============================== 
+            $insentif = $nilaiDisiplin * 15000; 
 
-                $hadir = $presensi->count();
-                // Menghitung Terlambat dan Tidak Absen Pagi sebagai pengurang kedisiplinan/insentif
-                $telat = $presensi->whereIn('status', ['Terlambat', 'Tidak Absen Pagi'])->count();
-                $hariKerja = 28;
-                $nilaiDisiplin = max(0, $hadir - $telat);
+            $item = [ 
+                'nama' => $k->nama, 
+                'hadir' => $hadir, 
+                'telat' => $telat, 
+                'ketidakhadiran' => $ketidakhadiran, 
+                'keterangan' => $keterangan, 
+                'persen' => $persen, 
+                'insentif' => $insentif 
+            ]; 
 
-                // ===============================
-                // Ketidakhadiran
-                // ===============================
-                if ($hadir == 0) {
-                    $ketidakhadiran = 0;
-                } else {
-                    $ketidakhadiran = $hariKerja - $hadir;
-                }
+            if (in_array($k->jabatan, $this->staffJabatan)) { 
+                $rekapStaff[] = $item; 
+            } else { 
+                $rekapNonStaff[] = $item; 
+            } 
+        } 
+    } 
 
-                // ===============================
-                // Persentase
-                // ===============================
-                if ($hadir == 0) {
-                    $persen = '-';
-                } else {
-                    $persen = round(($nilaiDisiplin / $hariKerja) * 100, 1);
-                }
+    /* 
+    |-------------------------------------------------------------------------- 
+    | MODE TIDAK VALID 
+    |-------------------------------------------------------------------------- 
+    */ 
+    else { 
+        return back()->with('error', 'Mode laporan tidak valid.'); 
+    } 
 
-                // ===============================
-                // Keterangan
-                // ===============================
-                if ($hadir >= 20 && $telat <= 3) {
-                    $keterangan = 'Disiplin';
-                } else {
-                    $keterangan = 'Kurang Disiplin';
-                }
+    /* 
+    |-------------------------------------------------------------------------- 
+    | EXPORT PDF 
+    |-------------------------------------------------------------------------- 
+    */ 
+    $pdf = Pdf::loadView('laporan.presensi.pdf', [ 
+        'presensis' => $presensis, 
+        'rekapStaff' => $rekapStaff, 
+        'rekapNonStaff' => $rekapNonStaff, 
+        'mode' => $mode, 
+        'tanggal' => $tanggal, 
+        'bulan' => $bulan, 
+        'startDate' => $startDate ?? null, 
+        'endDate' => $endDate ?? null 
+    ]); 
 
-                // ===============================
-                // Insentif
-                // ===============================
-                $insentif = $nilaiDisiplin * 15000;
+    /* 
+    |-------------------------------------------------------------------------- 
+    | NAMA FILE PDF 
+    |-------------------------------------------------------------------------- 
+    */ 
+    $filename = match ($mode) { 
+        'harian' => 'laporan-presensi-harian.pdf', 
+        'mingguan' => 'laporan-presensi-mingguan.pdf', 
+        'bulanan' => 'laporan-presensi-bulanan.pdf', 
+        default => 'laporan-presensi.pdf' 
+    }; 
 
-                $item = [
-                    'nama' => $k->nama,
-                    'hadir' => $hadir,
-                    'telat' => $telat,
-                    'ketidakhadiran' => $ketidakhadiran,
-                    'keterangan' => $keterangan,
-                    'persen' => $persen,
-                    'insentif' => $insentif
-                ];
-
-                if (in_array($k->jabatan, $this->staffJabatan)) {
-                    $rekapStaff[] = $item;
-                } else {
-                    $rekapNonStaff[] = $item;
-                }
-            }
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | MODE TIDAK VALID
-        |--------------------------------------------------------------------------
-        */
-        else {
-            return back()->with('error', 'Mode laporan tidak valid.');
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | EXPORT PDF
-        |--------------------------------------------------------------------------
-        */
-        $pdf = Pdf::loadView('laporan.presensi.pdf', [
-            'data' => $data,
-            'rekapStaff' => $rekapStaff,
-            'rekapNonStaff' => $rekapNonStaff,
-            'mode' => $mode,
-            'tanggal' => $tanggal,
-            'bulan' => $bulan,
-            'startDate' => $startDate ?? null,
-            'endDate' => $endDate ?? null
-        ]);
-
-        /*
-        |--------------------------------------------------------------------------
-        | NAMA FILE PDF
-        |--------------------------------------------------------------------------
-        */
-        $filename = match ($mode) {
-            'harian' => 'laporan-presensi-harian.pdf',
-            'mingguan' => 'laporan-presensi-mingguan.pdf',
-            'bulanan' => 'laporan-presensi-bulanan.pdf',
-            default => 'laporan-presensi.pdf'
-        };
-
-        return $pdf->download($filename);
-    }
+    return $pdf->download($filename); 
+}
 }
