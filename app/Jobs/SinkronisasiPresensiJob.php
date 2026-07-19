@@ -115,9 +115,9 @@ class SinkronisasiPresensiJob implements ShouldQueue
                 }
 
                 // Logika Status
-               if (empty($jamMasuk)) {
-    // Jika tidak absen pagi tapi absen sore, beri status khusus
-    $status = !empty($jamKeluar) ? 'Tidak Absen Pagi' : 'Belum Hadir';
+                if (empty($jamMasuk)) {
+                    // PERBAIKAN: Disimpan ke $presensi->status agar masuk ke database
+                    $presensi->status = !empty($jamKeluar) ? 'Tidak Absen Pagi' : 'Belum Hadir';
                 } else {
                     $tanggalCarbon = Carbon::parse($presensi->tanggal);
                     
