@@ -31,140 +31,77 @@ class LaporanController extends Controller
         'OFFICE BOY CABANG',
     ];
 
-    public function presensi(Request $request) 
+ public function presensi(Request $request) 
 { 
-    $mode = $request->mode ?? 'harian'; 
-    $tanggal = $request->tanggal ?? now()->toDateString(); 
+    // Default mode langsung bulanan
+    $mode = 'bulanan'; 
     $bulan = $request->bulan ?? now()->format('Y-m'); 
 
-    /* 
-    |-------------------------------------------------------------------------- 
-    | HARIAN 
-    |-------------------------------------------------------------------------- 
-    */ 
-    if ($mode == 'harian') { 
-        $presensis = Presensi::with('karyawan') 
-            ->where('tanggal', 'LIKE', $tanggal . '%') 
-            ->orderBy('tanggal', 'DESC') 
+    $selectedDate = Carbon::parse($bulan); 
+    $startDate = $selectedDate->copy()->subMonth()->day(26)->format('Y-m-d'); 
+    $endDate = $selectedDate->copy()->day(25)->format('Y-m-d'); 
+
+    $karyawans = Karyawan::orderBy('nama')->get(); 
+    $rekapStaff = []; 
+    $rekapNonStaff = []; 
+
+    foreach ($karyawans as $k) { 
+        $presensi = Presensi::where('karyawan_id', $k->id) 
+            ->whereBetween('tanggal', [$startDate, $endDate]) 
             ->get(); 
 
-        return view('laporan.presensi.index', compact( 
-            'presensis', 
-            'mode', 
-            'tanggal' 
-        )); 
-    } 
+        $hadir = $presensi->count(); 
+        $telat = $presensi->whereIn('status', ['Terlambat', 'Tidak Absen Pagi'])->count(); 
+        $hariKerja = 28; 
+        $nilaiDisiplin = max(0, $hadir - $telat); 
 
-    /* 
-    |-------------------------------------------------------------------------- 
-    | MINGGUAN 
-    |-------------------------------------------------------------------------- 
-    */ 
-    if ($mode == 'mingguan') { 
-        $start = Carbon::parse($tanggal) 
-            ->startOfWeek() 
-            ->toDateString(); 
-        $end = Carbon::parse($tanggal) 
-            ->endOfWeek() 
-            ->toDateString(); 
-
-        $presensis = Presensi::with('karyawan') 
-            ->whereBetween('tanggal', [$start, $end]) 
-            ->orderBy('tanggal', 'DESC') 
-            ->get(); 
-
-        return view('laporan.presensi.index', compact( 
-            'presensis', 
-            'mode', 
-            'tanggal' 
-        )); 
-    } 
-
-    /* 
-    |-------------------------------------------------------------------------- 
-    | BULANAN 
-    |-------------------------------------------------------------------------- 
-    */ 
-    if ($mode == 'bulanan') { 
-        $selectedDate = Carbon::parse($bulan); 
-        $startDate = $selectedDate->copy()->subMonth()->day(26)->format('Y-m-d'); 
-        $endDate = $selectedDate->copy()->day(25)->format('Y-m-d'); 
-
-        $karyawans = Karyawan::orderBy('nama')->get(); 
-        $rekapStaff = []; 
-        $rekapNonStaff = []; 
-
-        foreach ($karyawans as $k) { 
-            $presensi = Presensi::where('karyawan_id', $k->id) 
-                ->whereBetween('tanggal', [$startDate, $endDate]) 
-                ->get(); 
-
-            $hadir = $presensi->count(); 
-            
-            // Menghitung Terlambat dan Tidak Absen Pagi sebagai pengurang kedisiplinan/insentif 
-            $telat = $presensi->whereIn('status', ['Terlambat', 'Tidak Absen Pagi'])->count(); 
-            $hariKerja = 28; 
-            $nilaiDisiplin = max(0, $hadir - $telat); 
-
-            // =============================== 
-            // Ketidakhadiran 
-            // =============================== 
-            if ($hadir == 0) { 
-                $ketidakhadiran = 0; 
-            } else { 
-                $ketidakhadiran = $hariKerja - $hadir; 
-            } 
-
-            // =============================== 
-            // Persentase 
-            // =============================== 
-            if ($hadir == 0) { 
-                $persen = '-'; 
-            } else { 
-                $persen = round(($nilaiDisiplin / $hariKerja) * 100, 1); 
-            } 
-
-            // =============================== 
-            // Keterangan 
-            // =============================== 
-            if ($hadir >= 20 && $telat <= 3) { 
-                $keterangan = 'Disiplin'; 
-            } else { 
-                $keterangan = 'Kurang Disiplin'; 
-            } 
-
-            // =============================== 
-            // Insentif 
-            // =============================== 
-            $insentif = $nilaiDisiplin * 15000; 
-
-            $item = [ 
-                'nama' => $k->nama, 
-                'hadir' => $hadir, 
-                'telat' => $telat, 
-                'ketidakhadiran' => $ketidakhadiran, 
-                'keterangan' => $keterangan, 
-                'persen' => $persen, 
-                'insentif' => $insentif 
-            ]; 
-
-            if (in_array($k->jabatan, $this->staffJabatan)) { 
-                $rekapStaff[] = $item; 
-            } else { 
-                $rekapNonStaff[] = $item; 
-            } 
+        if ($hadir == 0) { 
+            $ketidakhadiran = 0; 
+        } else { 
+            $ketidakhadiran = $hariKerja - $hadir; 
         } 
 
-        return view('laporan.presensi.index', compact( 
-            'rekapStaff', 
-            'rekapNonStaff', 
-            'mode', 
-            'bulan', 
-            'startDate', 
-            'endDate' 
-        )); 
+        if ($hadir == 0) { 
+            $persen = '-'; 
+        } else { 
+            $persen = round(($nilaiDisiplin / $hariKerja) * 100, 1); 
+        } 
+
+        if ($hadir >= 20 && $telat <= 3) { 
+            $keterangan = 'Disiplin'; 
+        } else { 
+            $keterangan = 'Kurang Disiplin'; 
+        } 
+
+        $insentif = $nilaiDisiplin * 15000; 
+
+        $item = [ 
+            'nama' => $k->nama, 
+            'hadir' => $hadir, 
+            'telat' => $telat, 
+            'ketidakhadiran' => $ketidakhadiran, 
+            'keterangan' => $keterangan, 
+            'persen' => $persen, 
+            'insentif' => $insentif 
+        ]; 
+
+        if (in_array($k->jabatan, $this->staffJabatan)) { 
+            $rekapStaff[] = $item; 
+        } else { 
+            $rekapNonStaff[] = $item; 
+        } 
     } 
+
+    return view('laporan.presensi.index', compact( 
+        'rekapStaff', 
+        'rekapNonStaff', 
+        'mode', 
+        'bulan', 
+        'startDate', 
+        'endDate' 
+    )); 
 }
+
 
 
     /*
