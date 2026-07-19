@@ -1,185 +1,296 @@
-@extends('layouts.app') 
+@extends('layouts.app')
 
-@section('content') 
-<style> 
- .table-warning{ 
- background-color:#FFF3CD !important; 
- } 
- .table-warning:hover{ 
- background-color:#FFE69C !important; 
- } 
-</style> 
-<div class="container mt-4"> 
- <div class="card shadow-sm border-0"> 
- <div class="card-header text-white d-flex justify-content-between align-items-center flex-wrap gap-2" style="background-color: #FA713F;"> 
- <h5 class="mb-0">Data Presensi Bulanan</h5> 
- <form action="{{ route('presensi.import') }}" method="POST"> 
- @csrf 
- <button type="submit" class="btn btn-success btn-sm">⭐ Auto Import</button> 
- </form> 
- </div> 
- <div class="card-body"> 
- <form action="{{ route('presensi.upload') }}" method="POST" enctype="multipart/form-data" class="mb-3 d-flex flex-column flex-lg-row gap-2"> 
- @csrf 
- <input type="file" name="file" class="form-control" required> 
- <button class="btn btn-primary">Upload CSV</button> 
- </form> 
- <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2"> 
- <div class="text-muted small">
- Periode: <strong>{{ \Carbon\Carbon::parse($startDate)->format('d-m-Y') }}</strong> s/d <strong>{{ \Carbon\Carbon::parse($endDate)->format('d-m-Y') }}</strong>
- </div>
- <form action="" method="GET" class="d-flex"> 
- <input type="month" name="bulan" class="form-control me-2" value="{{ request('bulan', $bulan) }}"> 
- <button class="btn btn-outline-secondary">Filter</button> 
- </form> 
- </div> 
- <div class="alert alert-warning py-2 mb-3"> 
- <strong>Keterangan :</strong> Baris Berwarna Kuning = Data Diedit. Status Terlambat & Tidak Absen Pagi = Pemotongan Insentif. 
- </div> 
+@section('content')
 
- {{-- ================= DESKTOP TABLE ================= --}} 
- <div class="table-responsive d-none d-lg-block"> 
- <table class="table table-bordered table-striped table-hover align-middle"> 
- <thead class="text-center text-white" style="background-color: #FA713F;"> 
- <tr> 
- <th>No</th> 
- <th>Nama</th> 
- <th>Tanggal / Periode</th> 
- <th>Masuk (Hadir)</th> 
- <th>Keluar (Mangkir)</th> 
- <th>Status</th> 
- <th>Keterangan</th> 
- <th>Log Edit / Insentif</th> 
- <th width="180">Aksi</th> 
- </tr> 
- </thead> 
- <tbody> 
- {{-- ------------------ KELOMPOK STAFF ------------------ --}}
- <tr class="table-dark text-white fw-bold"><td colspan="9">KARYAWAN STAFF</td></tr>
- @php $noStaff = 1; @endphp
- @forelse ($rekapStaff as $p) 
- <tr> 
- <td class="text-center">{{ $noStaff++ }}</td> 
- <td>{{ $p['nama'] }}</td> 
- <td class="text-center">{{ \Carbon\Carbon::parse($startDate)->format('d/m') }} - {{ \Carbon\Carbon::parse($endDate)->format('d/m') }}</td> 
- <td class="text-center">{{ $p['hadir'] }} Hari</td> 
- <td class="text-center">{{ $p['ketidakhadiran'] }} Hari</td> 
- <td class="text-center"> 
- @if($p['keterangan'] == 'Disiplin') 
- <span class="badge bg-success">Disiplin</span> 
- @else 
- <span class="badge bg-warning text-dark">Kurang Disiplin</span> 
- @endif 
- </td> 
- <td class="text-center"><span class="badge bg-info">{{ $p['persen'] }}%</span></td> 
- <td class="text-center"> 
- <strong>Rp {{ number_format($p['insentif'], 0, ',', '.') }}</strong>
- </td> 
- <td class="text-center"> 
- <span class="text-muted small">Mode Bulanan</span>
- </td> 
- </tr> 
- @empty 
- <tr><td colspan="9" class="text-center text-muted">Data Staff Belum Tersedia</td></tr> 
- @endforelse 
+<style>
+@media (max-width:768px){
+    .container{ padding:10px !important; }
+    .table-mobile{ display:none; }
+    .card-mobile{ display:block; }
+    .card-item{ border:1px solid #ddd; border-radius:10px; padding:12px; margin-bottom:10px; background:#fff; }
+    .card-item h6{ font-size:14px; margin-bottom:5px; }
+    .card-item p{ font-size:13px; margin-bottom:3px; }
+}
+@media(min-width:769px){
+    .card-mobile{ display:none; }
+}
+</style>
 
- {{-- ------------------ KELOMPOK NON-STAFF ------------------ --}}
- <tr class="table-dark text-white fw-bold"><td colspan="9">KARYAWAN NON-STAFF</td></tr>
- @php $noNonStaff = 1; @endphp
- @forelse ($rekapNonStaff as $p) 
- <tr> 
- <td class="text-center">{{ $noNonStaff++ }}</td> 
- <td>{{ $p['nama'] }}</td> 
- <td class="text-center">{{ \Carbon\Carbon::parse($startDate)->format('d/m') }} - {{ \Carbon\Carbon::parse($endDate)->format('d/m') }}</td> 
- <td class="text-center">{{ $p['hadir'] }} Hari</td> 
- <td class="text-center">{{ $p['ketidakhadiran'] }} Hari</td> 
- <td class="text-center"> 
- @if($p['keterangan'] == 'Disiplin') 
- <span class="badge bg-success">Disiplin</span> 
- @else 
- <span class="badge bg-warning text-dark">Kurang Disiplin</span> 
- @endif 
- </td> 
- <td class="text-center"><span class="badge bg-info">{{ $p['persen'] }}%</span></td> 
- <td class="text-center"> 
- <strong>Rp {{ number_format($p['insentif'], 0, ',', '.') }}</strong>
- </td> 
- <td class="text-center"> 
- <span class="text-muted small">Mode Bulanan</span>
- </td> 
- </tr> 
- @empty 
- <tr><td colspan="9" class="text-center text-muted">Data Non-Staff Belum Tersedia</td></tr> 
- @endforelse 
- </tbody> 
- </table> </div> 
+<div class="container mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header text-white" style="background:#FA713F;">
+            <h5 class="mb-0">Laporan Presensi</h5>
+        </div>
 
- {{-- ================= MOBILE CARD ================= --}} 
- <div class="d-lg-none"> 
- {{-- MOBILE STAFF --}}
- <div class="alert alert-secondary py-1 fw-bold mb-2 small shadow-sm">KARYAWAN STAFF</div>
- @forelse ($rekapStaff as $p) 
- <div class="card mb-3 shadow-sm border-0"> 
- <div class="card-body"> 
- <div class="d-flex justify-content-between"> 
- <strong>{{ $p['nama'] }}</strong> 
- <span class="text-muted small">{{ \Carbon\Carbon::parse($startDate)->format('d/m') }}-{{ \Carbon\Carbon::parse($endDate)->format('d/m') }}</span> 
- </div> 
- <hr class="my-2"> 
- <div class="row small"> 
- <div class="col-6"><strong>Masuk:</strong><br>{{ $p['hadir'] }} Hari</div> 
- <div class="col-6"><strong>Keluar:</strong><br>{{ $p['ketidakhadiran'] }} Hari</div> 
- </div> 
- <div class="mt-2"> 
- <strong>Status:</strong><br> 
- @if($p['keterangan'] == 'Disiplin') 
- <span class="badge bg-success">Disiplin</span> 
- @else 
- <span class="badge bg-warning text-dark">Kurang Disiplin</span> 
- @endif 
- </div> 
- <div class="mt-3 d-flex justify-content-between align-items-center small border-top pt-2"> 
- <strong>Insentif:</strong>
- <span class="text-success fw-bold">Rp {{ number_format($p['insentif'], 0, ',', '.') }}</span>
- </div> 
- </div> </div> 
- @empty 
- <div class="text-center text-muted small mb-3">Data Staff Belum Tersedia</div> 
- @endforelse 
+        <div class="card-body">
 
- {{-- MOBILE NON-STAFF --}}
- <div class="alert alert-secondary py-1 fw-bold mb-2 small shadow-sm">KARYAWAN NON-STAFF</div>
- @forelse ($rekapNonStaff as $p) 
- <div class="card mb-3 shadow-sm border-0"> 
- <div class="card-body"> 
- <div class="d-flex justify-content-between"> 
- <strong>{{ $p['nama'] }}</strong> 
- <span class="text-muted small">{{ \Carbon\Carbon::parse($startDate)->format('d/m') }}-{{ \Carbon\Carbon::parse($endDate)->format('d/m') }}</span> 
- </div> 
- <hr class="my-2"> 
- <div class="row small"> 
- <div class="col-6"><strong>Masuk:</strong><br>{{ $p['hadir'] }} Hari</div> 
- <div class="col-6"><strong>Keluar:</strong><br>{{ $p['ketidakhadiran'] }} Hari</div> 
- </div> 
- <div class="mt-2"> 
- <strong>Status:</strong><br> 
- @if($p['keterangan'] == 'Disiplin') 
- <span class="badge bg-success">Disiplin</span> 
- @else 
- <span class="badge bg-warning text-dark">Kurang Disiplin</span> 
- @endif 
- </div> 
- <div class="mt-3 d-flex justify-content-between align-items-center small border-top pt-2"> 
- <strong>Insentif:</strong>
- <span class="text-success fw-bold">Rp {{ number_format($p['insentif'], 0, ',', '.') }}</span>
- </div> 
- </div> </div> 
- @empty 
- <div class="text-center text-muted small">Data Non-Staff Belum Tersedia</div> 
- @endforelse 
- </div> 
- 
- {{-- Tombol links() dihilangkan sepenuhnya di sini karena tidak menggunakan pagination --}}
+            {{-- FILTER --}}
+            <div class="mb-4">
+                <form method="GET" class="row g-2 align-items-end">
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">Mode Laporan</label>
+                        <select name="mode" id="modeSelect" class="form-select">
+                            <option value="harian" {{ request('mode') == 'harian' ? 'selected' : '' }}>Harian</option>
+                            <option value="mingguan" {{ request('mode') == 'mingguan' ? 'selected' : '' }}>Mingguan</option>
+                            <option value="bulanan" {{ request('mode') == 'bulanan' ? 'selected' : '' }}>Bulanan (26 ke 25)</option>
+                            <option value="custom" {{ request('mode') == 'custom' ? 'selected' : '' }}>Rentang Waktu (Custom)</option>
+                        </select>
+                    </div>
 
- </div> </div> </div> 
+                    <div class="col-md-3" id="tanggalField" style="display:none;">
+                        <label class="form-label fw-bold">Pilih Tanggal</label>
+                        <input type="date" name="tanggal" value="{{ request('tanggal', now()->toDateString()) }}" class="form-control">
+                    </div>
+
+                    <div class="col-md-3" id="bulanField" style="display:none;">
+                        <label class="form-label fw-bold">Pilih Bulan</label>
+                        <input type="month" name="bulan" value="{{ request('bulan', now()->format('Y-m')) }}" class="form-control">
+                    </div>
+
+                    <div class="col-md-2" id="startDateField" style="display:none;">
+                        <label class="form-label fw-bold">Dari Tanggal</label>
+                        <input type="date" name="start_date" value="{{ request('start_date', now()->startOfMonth()->format('Y-m-d')) }}" class="form-control">
+                    </div>
+
+                    <div class="col-md-2" id="endDateField" style="display:none;">
+                        <label class="form-label fw-bold">Sampai Tanggal</label>
+                        <input type="date" name="end_date" value="{{ request('end_date', now()->endOfMonth()->format('Y-m-d')) }}" class="form-control">
+                    </div>
+
+                    <div class="col-md-2 d-flex gap-2">
+                        <button type="submit" class="btn btn-dark w-100">Filter</button>
+                        <a href="{{ route('laporan.presensi.exportPdf', request()->all()) }}" class="btn btn-danger w-100">
+                            <i class="bi bi-file-earmark-pdf-fill"></i> PDF
+                        </a>
+                    </div>
+                </form>
+            </div>
+
+            {{-- ================= HARIAN & MINGGUAN ================= --}}
+            @if(isset($mode) && ($mode == 'harian' || $mode == 'mingguan'))
+            <div class="table-responsive table-mobile">
+                <table class="table table-bordered table-striped">
+                    <thead class="text-center" style="background:#FA713F;color:white;">
+                        <tr>
+                            <th>Nama</th>
+                            <th>Tanggal</th>
+                            <th>Masuk</th>
+                            <th>Keluar</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($data as $d)
+                        <tr>
+                            <td>{{ $d->karyawan->nama ?? '' }}</td>
+                            <td class="text-center">{{ $d->tanggal ? \Carbon\Carbon::parse($d->tanggal)->format('d-m-Y') : '' }}</td>
+                            <td class="text-center">{{ $d->jam_masuk ?: '' }}</td>
+                            <td class="text-center">{{ $d->jam_keluar ?: '' }}</td>
+                            <td class="text-center">
+                                @if($d->status == 'Terlambat' || $d->status == 'Tidak Absen Pagi')
+                                    <span class="badge bg-danger">{{ $d->status }}</span>
+                                @elseif($d->status == 'Tepat Waktu')
+                                    <span class="badge bg-success">Tepat Waktu</span>
+                                @else
+                                    <span class="badge bg-warning text-dark">{{ $d->status }}</span>
+                                @endif
+                            </td>
+                        </tr>
+                        @empty
+                        <tr><td colspan="5" class="text-center">Tidak Ada Data</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+
+            {{-- MOBILE HARIAN/MINGGUAN --}}
+            <div class="card-mobile">
+                @forelse($data as $d)
+                <div class="card-item">
+                    <h6>{{ $d->karyawan->nama ?? '' }}</h6>
+                    <p>Tanggal : {{ $d->tanggal ? \Carbon\Carbon::parse($d->tanggal)->format('d-m-Y') : '' }}</p>
+                    <p>Masuk : {{ $d->jam_masuk ?: '-' }} | Keluar : {{ $d->jam_keluar ?: '-' }}</p>
+                    <p>Status :
+                        @if($d->status == 'Terlambat' || $d->status == 'Tidak Absen Pagi')
+                            <span class="badge bg-danger">{{ $d->status }}</span>
+                        @elseif($d->status == 'Tepat Waktu')
+                            <span class="badge bg-success">Tepat Waktu</span>
+                        @else
+                            <span class="badge bg-warning text-dark">{{ $d->status }}</span>
+                        @endif
+                    </p>
+                </div>
+                @empty
+                <div class="text-center">Tidak Ada Data</div>
+                @endforelse
+            </div>
+            @endif
+
+            {{-- ================= BULANAN & CUSTOM ================= --}}
+            @if(isset($mode) && ($mode == 'bulanan' || $mode == 'custom'))
+            
+            <div class="table-responsive table-mobile">
+                {{-- STAFF --}}
+                <h5 class="mb-3 d-flex align-items-center gap-2">
+                    Rekap Presensi Staff
+                    @if(isset($startDate) && isset($endDate))
+                        <span class="badge bg-secondary" style="font-size: 0.8rem; font-weight: normal;">
+                            {{ \Carbon\Carbon::parse($startDate)->translatedFormat('d M Y') }} - {{ \Carbon\Carbon::parse($endDate)->translatedFormat('d M Y') }}
+                        </span>
+                    @endif
+                </h5>
+                <table class="table table-bordered table-striped">
+                    <thead class="text-center" style="background:#FA713F;color:white;">
+                        <tr>
+                            <th>Nama</th>
+                            <th>Hadir</th>
+                            <th>Terlambat / Tdk Absen Pagi</th>
+                            <th>Ketidakhadiran</th>
+                            <th>Keterangan</th>
+                            <th>Persentase</th>
+                            <th>Insentif</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($rekapStaff as $r)
+                        <tr>
+                            <td>{{ $r['nama'] }}</td>
+                            <td class="text-center">{{ $r['hadir'] }}</td>
+                            <td class="text-center text-danger">{{ $r['telat'] }}</td>
+                            <td class="text-center">{{ $r['ketidakhadiran'] }}</td>
+                            <td class="text-center">
+                                @if($r['keterangan']=='Disiplin')
+                                    <span class="badge bg-success">Disiplin</span>
+                                @else
+                                    <span class="badge bg-danger">Kurang Disiplin</span>
+                                @endif
+                            </td>
+                            <td class="text-center">{{ $r['persen'] }}%</td>
+                            <td class="text-end pe-3 text-success fw-bold">Rp {{ number_format($r['insentif'],0,',','.') }}</td>
+                        </tr>
+                        @empty
+                        <tr><td colspan="7" class="text-center">Tidak Ada Data Staff</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+
+                {{-- NON STAFF --}}
+                <h5 class="mt-5 mb-3 d-flex align-items-center gap-2">
+                    Rekap Presensi Non Staff
+                </h5>
+                <table class="table table-bordered table-striped">
+                    <thead class="text-center" style="background:#FA713F;color:white;">
+                        <tr>
+                            <th>Nama</th>
+                            <th>Hadir</th>
+                            <th>Terlambat / Tdk Absen Pagi</th>
+                            <th>Ketidakhadiran</th>
+                            <th>Keterangan</th>
+                            <th>Persentase</th>
+                            <th>Insentif</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($rekapNonStaff as $r)
+                        <tr>
+                            <td>{{ $r['nama'] }}</td>
+                            <td class="text-center">{{ $r['hadir'] }}</td>
+                            <td class="text-center text-danger">{{ $r['telat'] }}</td>
+                            <td class="text-center">{{ $r['ketidakhadiran'] }}</td>
+                            <td class="text-center">
+                                @if($r['keterangan']=='Disiplin')
+                                    <span class="badge bg-success">Disiplin</span>
+                                @else
+                                    <span class="badge bg-danger">Kurang Disiplin</span>
+                                @endif
+                            </td>
+                            <td class="text-center">{{ $r['persen'] }}%</td>
+                            <td class="text-end pe-3 text-success fw-bold">Rp {{ number_format($r['insentif'],0,',','.') }}</td>
+                        </tr>
+                        @empty
+                        <tr><td colspan="7" class="text-center">Tidak Ada Data Non Staff</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+
+            {{-- MOBILE BULANAN/CUSTOM --}}
+            <div class="card-mobile">
+                <h6 class="mb-3">Rekap Presensi Staff</h6>
+                @forelse($rekapStaff as $r)
+                <div class="card-item">
+                    <h6>{{ $r['nama'] }}</h6>
+                    <p>Hadir: <strong>{{ $r['hadir'] }}</strong> | Telat/Tdk Absen Pagi: <span class="badge bg-danger">{{ $r['telat'] }}</span></p>
+                    <p>Alpa: {{ $r['ketidakhadiran'] }} | Persentase: <span class="badge bg-primary">{{ $r['persen'] }}%</span></p>
+                    <p>Status: @if($r['keterangan'] == 'Disiplin') <span class="badge bg-success">Disiplin</span> @else <span class="badge bg-danger">Kurang Disiplin</span> @endif </p>
+                    <p>Insentif: <span class="badge bg-success">Rp {{ number_format($r['insentif'],0,',','.') }}</span></p>
+                </div>
+                @empty
+                <div class="text-center text-muted">Tidak ada data</div>
+                @endforelse
+
+                <hr class="my-4">
+
+                <h6 class="mb-3">Rekap Presensi Non Staff</h6>
+                @forelse($rekapNonStaff as $r)
+                <div class="card-item">
+                    <h6>{{ $r['nama'] }}</h6>
+                    <p>Hadir: <strong>{{ $r['hadir'] }}</strong> | Telat/Tdk Absen Pagi: <span class="badge bg-danger">{{ $r['telat'] }}</span></p>
+                    <p>Alpa: {{ $r['ketidakhadiran'] }} | Persentase: <span class="badge bg-primary">{{ $r['persen'] }}%</span></p>
+                    <p>Status: @if($r['keterangan'] == 'Disiplin') <span class="badge bg-success">Disiplin</span> @else <span class="badge bg-danger">Kurang Disiplin</span> @endif </p>
+                    <p>Insentif: <span class="badge bg-success">Rp {{ number_format($r['insentif'],0,',','.') }}</span></p>
+                </div>
+                @empty
+                <div class="text-center text-muted">Tidak ada data</div>
+                @endforelse
+            </div>
+
+            {{-- Grafik --}}
+            <div class="mt-4">
+                <canvas id="chartPresensi"></canvas>
+            </div>
+            <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+            <script>
+            let hadir = {{ collect($rekapStaff)->sum('hadir') }} + {{ collect($rekapNonStaff)->sum('hadir') }};
+            let telat = {{ collect($rekapStaff)->sum('telat') }} + {{ collect($rekapNonStaff)->sum('telat') }};
+            let ketidakhadiran = {{ collect($rekapStaff)->sum('ketidakhadiran') }} + {{ collect($rekapNonStaff)->sum('ketidakhadiran') }};
+
+            new Chart(document.getElementById('chartPresensi'), {
+                type: 'bar',
+                data: {
+                    labels: ['Hadir', 'Pelanggaran (Telat/Tdk Absen Pagi)', 'Ketidakhadiran'],
+                    datasets: [{
+                        label: 'Statistik Presensi',
+                        backgroundColor: ['#28a745', '#dc3545', '#6c757d'],
+                        data: [hadir, telat, ketidakhadiran]
+                    }]
+                }
+            });
+            </script>
+            @endif
+
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const modeSelect = document.getElementById('modeSelect');
+    const tanggalField = document.getElementById('tanggalField');
+    const bulanField = document.getElementById('bulanField');
+    const startDateField = document.getElementById('startDateField');
+    const endDateField = document.getElementById('endDateField');
+
+    function toggleFields() {
+        const mode = modeSelect.value;
+        tanggalField.style.display = (mode === 'harian' || mode === 'mingguan') ? 'block' : 'none';
+        bulanField.style.display = (mode === 'bulanan') ? 'block' : 'none';
+        startDateField.style.display = (mode === 'custom') ? 'block' : 'none';
+        endDateField.style.display = (mode === 'custom') ? 'block' : 'none';
+    }
+
+    modeSelect.addEventListener('change', toggleFields);
+    toggleFields(); // Init on load
+});
+</script>
 @endsection
