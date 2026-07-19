@@ -318,48 +318,49 @@
 </div>
 
 <!-- ================= MODAL PENGATURAN JAM KELUAR ================= -->
+<!-- ================= MODAL PENGATURAN JAM KELUAR ================= -->
 <div class="modal fade" id="modalPengaturanJabatan" tabindex="-1" aria-labelledby="modalPengaturanJabatanLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content">
+        
+        {{-- PERBAIKAN: Tag <form> digabung dengan class "modal-content" agar fitur scroll Bootstrap berfungsi sempurna --}}
+        <form action="{{ route('karyawan.update_pengaturan_jam') }}" method="POST" class="modal-content">
+            @csrf
+            
             <div class="modal-header" style="background-color: #FA713F; color: white;">
                 <h5 class="modal-title" id="modalPengaturanJabatanLabel">⚙️ Pengaturan Tipe Jam Keluar per Jabatan</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             
-            {{-- Form akan mengarah ke route baru (nantinya kita buat di web.php dan KaryawanController) --}}
-            <form action="{{ route('karyawan.update_pengaturan_jam') }}" method="POST">
-                @csrf
-                <div class="modal-body">
-                    <div class="alert alert-info py-2" style="font-size: 14px;">
-                        <strong>Instruksi:</strong> Centang jabatan di bawah ini untuk mengatur tipe jam keluarnya menjadi <b>"Tidak Terbatas"</b>. Jika dibiarkan kosong, maka secara default akan menggunakan jam keluar <b>"Terbatas"</b>.
-                    </div>
+            <div class="modal-body">
+                <div class="alert alert-info py-2" style="font-size: 14px;">
+                    <strong>Instruksi:</strong> Centang jabatan di bawah ini untuk mengatur tipe jam keluarnya menjadi <b>"Tidak Terbatas"</b>. Jika dibiarkan kosong, maka secara default akan menggunakan jam keluar <b>"Terbatas"</b>.
+                </div>
 
-                    <div class="row px-2">
-                        @php
-                            // Mengambil list jabatan langsung dari Model
-                            $jabatanList = \App\Models\Karyawan::$jabatanList ?? [];
-                            // Sementara ini kita masih tarik data centang dari config sampai tabelnya di-updat
-                        @endphp
+                <div class="row px-2">
+                    @php
+                        // Mengambil list jabatan langsung dari Model
+                        $jabatanList = \App\Models\Karyawan::$jabatanList ?? [];
+                    @endphp
 
-                        @foreach($jabatanList as $jabatan)
-                            <div class="col-md-6 mb-2">
-                                <div class="form-check border rounded p-2" style="background-color: #f8f9fa;">
-                                    <input class="form-check-input ms-1" type="checkbox" name="jabatan_tidak_terbatas[]" value="{{ $jabatan }}" id="check_{{ Str::slug($jabatan) }}" {{ in_array($jabatan, $jabatanTidakTerbatas) ? 'checked' : '' }}>
-                                    <label class="form-check-label ms-2" for="check_{{ Str::slug($jabatan) }}" style="font-size: 14px; cursor:pointer; width:100%;">
-                                        {{ $jabatan }}
-                                    </label>
-                                </div>
+                    @foreach($jabatanList as $jabatan)
+                        <div class="col-md-6 mb-2">
+                            <div class="form-check border rounded p-2" style="background-color: #f8f9fa;">
+                                <input class="form-check-input ms-1" type="checkbox" name="jabatan_tidak_terbatas[]" value="{{ $jabatan }}" id="check_{{ Str::slug($jabatan) }}" {{ in_array($jabatan, $jabatanTidakTerbatas) ? 'checked' : '' }}>
+                                <label class="form-check-label ms-2" for="check_{{ Str::slug($jabatan) }}" style="font-size: 14px; cursor:pointer; width:100%;">
+                                    {{ $jabatan }}
+                                </label>
                             </div>
-                        @endforeach
-                    </div>
+                        </div>
+                    @endforeach
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-primary">Simpan Pengaturan</button>
-                </div>
-            </form>
-        </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-primary">Simpan Pengaturan</button>
+            </div>
+
+        </form>
     </div>
 </div>
-
 @endsection
