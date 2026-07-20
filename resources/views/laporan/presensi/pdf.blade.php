@@ -4,6 +4,11 @@
     <meta charset="utf-8">
     <title>Laporan Rekapitulasi Presensi</title>
     <style>
+        /* PERBAIKAN: Paksa orientasi kertas menjadi Landscape agar tabel tidak terpotong */
+        @page {
+            size: A4 landscape;
+            margin: 30px 40px;
+        }
         body {
             font-family: DejaVu Sans, sans-serif;
             font-size: 11px;
@@ -33,9 +38,17 @@
             border-collapse: collapse;
             margin-bottom: 10px;
         }
+        /* PERBAIKAN: Mencegah baris tabel terpotong di tengah saat berganti halaman */
+        thead {
+            display: table-header-group;
+        }
+        tr {
+            page-break-inside: avoid;
+        }
         th, td {
             border: 1px solid #000;
-            padding: 6px;
+            padding: 6px 4px;
+            vertical-align: middle;
         }
         th {
             background-color: #FA713F;
@@ -46,6 +59,8 @@
         .text-right { text-align: right; }
         .text-danger { color: #d9534f; font-weight: bold; }
         .text-success { color: #5cb85c; font-weight: bold; }
+        /* Mencegah teks turun ke bawah untuk nominal uang */
+        .nowrap { white-space: nowrap; } 
     </style>
 </head>
 <body>
@@ -66,14 +81,15 @@
     <table>
         <thead>
             <tr>
-                <th width="30">No</th>
-                <th>Nama</th>
-                <th width="50">Hadir</th>
-                <th width="100">Terlambat /<br>Tdk Absen Pagi</th>
-                <th width="80">Alpa</th>
-                <th width="80">Keterangan</th>
-                <th width="60">Persentase</th>
-                <th width="90">Insentif</th>
+                {{-- PERBAIKAN: Pembagian lebar kolom memakai Persentase (%) agar proporsional --}}
+                <th style="width: 4%;">No</th>
+                <th style="width: 25%;">Nama</th>
+                <th style="width: 8%;">Hadir</th>
+                <th style="width: 15%;">Terlambat /<br>Tdk Absen Pagi</th>
+                <th style="width: 8%;">Alpa</th>
+                <th style="width: 15%;">Keterangan</th>
+                <th style="width: 10%;">Persentase</th>
+                <th style="width: 15%;">Insentif</th>
             </tr>
         </thead>
         <tbody>
@@ -86,7 +102,7 @@
                 <td class="text-center">{{ $r['ketidakhadiran'] }}</td>
                 <td class="text-center">{{ $r['keterangan'] }}</td>
                 <td class="text-center">{{ $r['persen'] }}%</td>
-                <td class="text-right">Rp {{ number_format($r['insentif'], 0, ',', '.') }}</td>
+                <td class="text-right nowrap">Rp {{ number_format($r['insentif'], 0, ',', '.') }}</td>
             </tr>
             @empty
             <tr>
@@ -101,18 +117,17 @@
     <table>
         <thead>
             <tr>
-                <th width="30">No</th>
-                <th>Nama</th>
-                <th width="50">Hadir</th>
-                <th width="100">Terlambat /<br>Tdk Absen Pagi</th>
-                <th width="80">Alpa</th>
-                <th width="80">Keterangan</th>
-                <th width="60">Persentase</th>
-                <th width="90">Insentif</th>
+                <th style="width: 4%;">No</th>
+                <th style="width: 25%;">Nama</th>
+                <th style="width: 8%;">Hadir</th>
+                <th style="width: 15%;">Terlambat /<br>Tdk Absen Pagi</th>
+                <th style="width: 8%;">Alpa</th>
+                <th style="width: 15%;">Keterangan</th>
+                <th style="width: 10%;">Persentase</th>
+                <th style="width: 15%;">Insentif</th>
             </tr>
         </thead>
         <tbody>
-            {{-- PERBAIKAN: Menggunakan $rekapNonStaff, bukan $rekapStaff --}}
             @forelse($rekapNonStaff as $index => $r)
             <tr>
                 <td class="text-center">{{ $index + 1 }}</td>
@@ -122,7 +137,7 @@
                 <td class="text-center">{{ $r['ketidakhadiran'] }}</td>
                 <td class="text-center">{{ $r['keterangan'] }}</td>
                 <td class="text-center">{{ $r['persen'] }}%</td>
-                <td class="text-right">Rp {{ number_format($r['insentif'], 0, ',', '.') }}</td>
+                <td class="text-right nowrap">Rp {{ number_format($r['insentif'], 0, ',', '.') }}</td>
             </tr>
             @empty
             <tr>
